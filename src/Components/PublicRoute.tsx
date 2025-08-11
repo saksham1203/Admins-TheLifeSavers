@@ -18,9 +18,9 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
     const isBlogPost = location.pathname.startsWith("/blogs/");
 
 
-  // If the user is authenticated and not on a whitelisted page or a blog post page, redirect to dashboard
+  // If the user is authenticated and not on a whitelisted page or a blog post page, redirect to admin-dashboard
   if (isAuthenticated && !allowedPublicPaths.includes(location.pathname) && !isBlogPost) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/admin-dashboard" />;
   }
 
   // Render children or outlet if the route is allowed

@@ -52,7 +52,7 @@ const useAuthLogic = (
 
   useEffect(() => {
     if (isLoggedIn) {
-      navigate("/dashboard");
+      navigate("/admin-dashboard");
     }
   }, [isLoggedIn, navigate]);
 

@@ -36,7 +36,7 @@ const ErrorPage: React.FC = () => {
             changed, or is temporarily unavailable.
           </p>
           <Link
-            to="/dashboard"
+            to="/admin-dashboard"
             id="go-home-button"
             className="inline-block px-8 py-3 text-white bg-red-600 hover:bg-red-700 rounded-full shadow-lg transition-transform duration-300 transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             aria-label="Go to Dashboard"

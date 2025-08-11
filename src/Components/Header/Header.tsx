@@ -9,9 +9,9 @@ import {
   FaFileContract,
   FaShieldAlt,
   FaSignInAlt,
-  FaSearch,
   FaEnvelope,
   FaTint,
+  FaUserShield,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { useAuth } from "../../Context/AuthContext";
@@ -201,9 +201,9 @@ const Header: React.FC = () => {
 
             {[
               {
-                to: "/dashboard",
-                icon: <FaSearch className="mr-2 text-xl" />,
-                label: "Find Donors",
+                to: "/admin-dashboard",
+                icon: <FaUserShield className="mr-2 text-xl" />,
+                label: "Admin Dashboard",
               },
               {
                 to: "/blogs",

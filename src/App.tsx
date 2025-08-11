@@ -8,20 +8,25 @@ import PublicRoute from "./Components/PublicRoute";
 import PrivacyPolicy from "./pages/PrivacyPolicy/PrivacyPolicy";
 
 // Lazy load components to optimize performance
-const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
-const Landing = lazy(()=> import("./pages/Landing/Landing"))
+const AdminDashboard = lazy(
+  () => import("./pages/AdminDashboard/AdminDashboard")
+);
+const Landing = lazy(() => import("./pages/Landing/Landing"));
 const Login = lazy(() => import("./pages/Login/Login"));
-const ForgotPassword = lazy(() => import("./Components/ForgotPassword/ForgotPassword"));
+const ForgotPassword = lazy(
+  () => import("./Components/ForgotPassword/ForgotPassword")
+);
 const AboutUs = lazy(() => import("./pages/AboutUs/AboutUs"));
-const TermsAndConditions = lazy(() =>
-  import("./pages/TermsAndConditions/TermsAndConditions")
+const TermsAndConditions = lazy(
+  () => import("./pages/TermsAndConditions/TermsAndConditions")
 );
 const Blogs = lazy(() => import("./pages/Blogs/Blogs"));
 // const BlogDetail = lazy(() => import("./pages/BlogDetail/BlogDetail")); // Blog detail page
-const BlogDetail = lazy(()=> import('./pages/BlogDetail/BlogDetail'))
-const ContactUs = lazy(()=> import("./Components/ContactUs/ContactUs"))
-const LearnAboutDonation = lazy(() => import("./pages/LearnAboutDonation/LearnAboutDonation")); // New import
-
+const BlogDetail = lazy(() => import("./pages/BlogDetail/BlogDetail"));
+const ContactUs = lazy(() => import("./Components/ContactUs/ContactUs"));
+const LearnAboutDonation = lazy(
+  () => import("./pages/LearnAboutDonation/LearnAboutDonation")
+); // New import
 
 // QueryClient with enhanced config
 const queryClient = new QueryClient({
@@ -38,7 +43,7 @@ const PATHS = {
   ROOT: "/",
   LOGIN: "/login",
   FORGOT_PASSWORD: "/forgot-password",
-  DASHBOARD: "/dashboard",
+  ADMIN_DASHBOARD: "/admin-dashboard",
   REVIEWS: "/reviews",
   ABOUT_US: "/about-us",
   TERMS: "/terms-and-conditions",
@@ -86,14 +91,14 @@ const App = () => {
           ),
         },
         {
-          path: PATHS.DASHBOARD,
+          path: PATHS.ADMIN_DASHBOARD,
           element: <ProtectedRoute />,
           children: [
             {
-              path: PATHS.DASHBOARD,
+              path: PATHS.ADMIN_DASHBOARD,
               element: (
                 <Suspense fallback={<div>Loading...</div>}>
-                  <Dashboard />
+                  <AdminDashboard />
                 </Suspense>
               ),
             },
