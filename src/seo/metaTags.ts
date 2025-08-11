@@ -26,10 +26,10 @@ export const metaTags: Record<string, MetaData> = {
     description: "Forgot your password? Reset it securely to continue saving lives with The Life Savers.",
     canonical: "https://thelifesavers.in/forgot-password",
   },
-  "/dashboard": {
+  "/admin-dashboard": {
     title: "Dashboard | The Life Savers",
     description: "Access your dashboard to view your donation stats, notifications, and urgent blood requests.",
-    canonical: "https://thelifesavers.in/dashboard",
+    canonical: "https://thelifesavers.in/admin-dashboard",
   },
   "/profile": {
     title: "My Profile | The Life Savers",
