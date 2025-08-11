@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "480246787774",
+    "project_id": "the-life-savers",
+    "storage_bucket": "the-life-savers.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:480246787774:android:974c35bca2eff71d04f8ef",
+        "android_client_info": {
+          "package_name": "in.thelifesavers.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMDkrLnV3I64aE-r3whjCCaQF6JR-NqZE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

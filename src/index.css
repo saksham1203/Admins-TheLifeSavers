@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+body {
+    font-family: 'Arsenal SC', serif;
+  }
+
+
+/* For WebKit browsers (Chrome, Safari) */
+::-webkit-scrollbar {
+  width: 12px; /* Scrollbar width */
+  height: 12px; /* Horizontal scrollbar height */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #4b5563; /* Scrollbar thumb color (gray-600) */
+  border-radius: 10px; /* Rounded corners */
+  border: 2px solid #f1f5f9; /* Space around the thumb (gray-100) */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #1f2937; /* Darker thumb on hover (gray-800) */
+}
+
+::-webkit-scrollbar-track {
+  background-color: #f9fafb; /* Track color (gray-50) */
+  border-radius: 10px;
+}
+
+/* Optional: Customize Firefox Scrollbars */
+* {
+  scrollbar-width: thin; /* Thin scrollbar */
+  scrollbar-color: #4b5563 #f9fafb; /* Thumb and track color */
+}
