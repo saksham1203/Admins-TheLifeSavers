@@ -444,18 +444,11 @@ const Landing: React.FC = () => {
                 transition={{ delay: 0.7, duration: 0.5 }}
               >
                 <button
-                  onClick={() => navigate("/register")}
-                  className="border border-white text-white font-semibold py-3 px-8 rounded-full hover:bg-white hover:text-red-600 transition duration-300"
-                  aria-label="Join as a Blood Donor"
-                >
-                  Join Us
-                </button>
-                <button
                   onClick={() => navigate("/login")}
                   className="border border-white text-white font-semibold py-3 px-8 rounded-full hover:bg-white hover:text-red-600 transition duration-300"
                   aria-label="Find Blood Donors"
                 >
-                  Find Donors
+                  Admin Login
                 </button>
               </motion.div>
             </div>

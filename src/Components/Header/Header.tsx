@@ -129,7 +129,7 @@ const Header: React.FC = () => {
                   isScrolled ? "text-lg" : "text-xl"
                 }`}
               >
-                The Life Savers Labs
+                The Life Savers Admin
               </span>
               {/* <span
                 className="absolute right-0 text-xs font-medium text-red-500"

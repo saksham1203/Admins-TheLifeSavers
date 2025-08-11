@@ -70,7 +70,7 @@ const Login: React.FC = () => {
         <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full overflow-hidden relative animate-fade-in">
           {/* Header Section */}
           <div className="bg-gradient-to-r from-red-600 via-red-500 to-red-400 text-white text-center py-8 px-6">
-            <h1 className="text-4xl font-extrabold mb-2">Lab Login</h1>
+            <h1 className="text-4xl font-extrabold mb-2">Admin Login</h1>
           </div>
 
           {/* Content Section */}
@@ -92,7 +92,7 @@ const Login: React.FC = () => {
               <h2 className="text-3xl font-bold text-gray-800 mb-4 text-center">
                 Welcome,{" "}
                 <span className="text-3xl text-red-600 font-bold">
-                  Lab Partner
+                  Admin
                 </span>
               </h2>
 
