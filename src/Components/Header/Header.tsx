@@ -12,6 +12,7 @@ import {
   FaEnvelope,
   FaTint,
   FaUserShield,
+  FaFlask,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { useAuth } from "../../Context/AuthContext";
@@ -158,12 +159,18 @@ const Header: React.FC = () => {
                 onClick={toggleSidebar}
               >
                 <span className="hidden md:inline text-sm font-medium mr-2 text-gray-800">
-                  {`${user.firstName} ${user.lastName}`}
+                  {user.firstName || user.lastName
+                    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+                    : (user as any).name}
                 </span>
 
                 <div className="h-8 w-8 flex items-center justify-center bg-gray-800 text-white rounded-full">
-                  {user.firstName.charAt(0)}
-                  {user.lastName.charAt(0)}
+                  {user.firstName
+                    ? user.firstName.charAt(0)
+                    : (user as any).name?.charAt(0)}
+                  {user.lastName
+                    ? user.lastName.charAt(0)
+                    : (user as any).name?.split(" ")[1]?.charAt(0) ?? ""}
                 </div>
               </div>
             )}
@@ -204,6 +211,11 @@ const Header: React.FC = () => {
                 to: "/admin-dashboard",
                 icon: <FaUserShield className="mr-2 text-xl" />,
                 label: "Admin Dashboard",
+              },
+              {
+                to: "/lab-onboarding",
+                icon: <FaFlask className="mr-2 text-xl" />,
+                label: "Lab Onboarding",
               },
               {
                 to: "/blogs",

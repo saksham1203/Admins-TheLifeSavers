@@ -11,6 +11,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy/PrivacyPolicy";
 const AdminDashboard = lazy(
   () => import("./pages/AdminDashboard/AdminDashboard")
 );
+const LabOnboarding = lazy(() => import("./pages/LabOnboarding/LabOnboarding"))
 const Landing = lazy(() => import("./pages/Landing/Landing"));
 const Login = lazy(() => import("./pages/Login/Login"));
 const ForgotPassword = lazy(
@@ -44,6 +45,7 @@ const PATHS = {
   LOGIN: "/login",
   FORGOT_PASSWORD: "/forgot-password",
   ADMIN_DASHBOARD: "/admin-dashboard",
+  LabOnboarding: "/lab-onboarding",
   REVIEWS: "/reviews",
   ABOUT_US: "/about-us",
   TERMS: "/terms-and-conditions",
@@ -99,6 +101,20 @@ const App = () => {
               element: (
                 <Suspense fallback={<div>Loading...</div>}>
                   <AdminDashboard />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+                {
+          path: PATHS.LabOnboarding,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.LabOnboarding,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <LabOnboarding />
                 </Suspense>
               ),
             },
