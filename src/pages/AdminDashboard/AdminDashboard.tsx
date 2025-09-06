@@ -404,7 +404,7 @@ const AdminDashboard: React.FC = () => {
                 </ResponsiveContainer>
               </div>
             </SectionCard>
-            <SectionCard title={<span className="flex items-center gap-2">Requests</span>} right={<div className="text-xs text-gray-500">Super Admin</div>}>
+            <SectionCard title={<span className="flex items-center gap-2">Partner Requests</span>} right={<div className="text-xs text-gray-500">Super Admin</div>}>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-2xl font-extrabold text-gray-900">{overview?.partnerRequestsCount ?? 0}</div>
@@ -427,8 +427,7 @@ const AdminDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <SectionCard title={<span className="flex items-center gap-2"><FaClipboardList /> Quick Actions</span>}>
               <div className="flex flex-col sm:flex-row gap-3">
-                <button className="rounded-full bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700">Create Test Package</button>
-                <button className="rounded-full bg-white border px-4 py-2 text-sm font-semibold hover:bg-red-50">Onboard Lab</button>
+                <button className="rounded-full bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/lab-onboarding")}>Onboard Lab</button>
               </div>
             </SectionCard>
 
