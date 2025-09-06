@@ -41,7 +41,7 @@ func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: Str
     guard let token = fcmToken else { return }
 
     // Create URL
-    guard let url = URL(string: "https://thelifesaversbackend.onrender.com/api/notifications/save-token") else {
+    guard let url = URL(string: "https://dev-service-thelifesavers-in.onrender.com/api/notifications/save-token") else {
         print("❌ Invalid URL")
         return
     }

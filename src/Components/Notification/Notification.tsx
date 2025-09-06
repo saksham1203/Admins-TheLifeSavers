@@ -10,7 +10,7 @@ import { PushNotifications } from "@capacitor/push-notifications";
 import { Capacitor } from "@capacitor/core";
 
 // Initialize socket connection
-const socket = io("https://thelifesaversbackend.onrender.com/");
+const socket = io("https://dev-service-thelifesavers-in.onrender.com/");
 
 interface Notification {
   id: number;
@@ -43,7 +43,7 @@ const Notification: React.FC = () => {
         console.log('FCM Token (native):', token.value);
       
         try {
-          await fetch("https://thelifesaversbackend.onrender.com/api/notifications/save-token", {
+          await fetch("https://dev-service-thelifesavers-in.onrender.com/api/notifications/save-token", {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
