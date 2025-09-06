@@ -180,7 +180,7 @@ const PartnersRequestPage: React.FC = () => {
     try {
       const token = readTokenFromLocalStorage();
       const res = await fetch(
-        "http://localhost:5000/api/partner-admin/requests",
+        "https://dev-service-thelifesavers-in.onrender.com/api/partner-admin/requests",
         {
           headers: {
             "Content-Type": "application/json",
@@ -244,7 +244,7 @@ const PartnersRequestPage: React.FC = () => {
     try {
       const token = readTokenFromLocalStorage();
       const res = await fetch(
-        `http://localhost:5000/api/partner-admin/requests/${id}/${
+        `https://dev-service-thelifesavers-in.onrender.com/api/partner-admin/requests/${id}/${
           type === "approve" ? "approve" : "reject"
         }`,
         {
