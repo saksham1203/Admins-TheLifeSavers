@@ -28,6 +28,7 @@ const ContactUs = lazy(() => import("./Components/ContactUs/ContactUs"));
 const LearnAboutDonation = lazy(
   () => import("./pages/LearnAboutDonation/LearnAboutDonation")
 ); // New import
+const PartnerRequest = lazy(() => import("./pages/PartnerRequest/partnersRequest"));
 
 // QueryClient with enhanced config
 const queryClient = new QueryClient({
@@ -54,6 +55,7 @@ const PATHS = {
   BLOG_DETAIL: "/blogs/:title", // Dynamic path for blog detail
   CONTACT_US: "/contact-us", // New path for ContactUs page
   LEARN_ABOUT_DONATION: "/learn-about-donation", // New path for LearnAboutDonation
+  PartnerRequest: "/partner-requests",
 };
 
 const App = () => {
@@ -101,6 +103,20 @@ const App = () => {
               element: (
                 <Suspense fallback={<div>Loading...</div>}>
                   <AdminDashboard />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
+          path: PATHS.PartnerRequest,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.PartnerRequest,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <PartnerRequest />
                 </Suspense>
               ),
             },
