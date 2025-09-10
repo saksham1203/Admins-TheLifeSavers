@@ -428,6 +428,8 @@ const AdminDashboard: React.FC = () => {
             <SectionCard title={<span className="flex items-center gap-2"><FaClipboardList /> Quick Actions</span>}>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button className="rounded-full bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/lab-onboarding")}>Onboard Lab</button>
+                <button className="rounded-full bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/lab-admins-onboarding")}>Onboard Lab Admins</button>
+                <button className="rounded-full bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/promocodes-onboarding")}>Add Promocodes</button>
               </div>
             </SectionCard>
 
