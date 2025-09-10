@@ -11,13 +11,10 @@ import PrivacyPolicy from "./pages/PrivacyPolicy/PrivacyPolicy";
 const AdminDashboard = lazy(
   () => import("./pages/AdminDashboard/AdminDashboard")
 );
-const LabOnboarding = lazy(() => import("./pages/LabOnboarding/LabOnboarding"));
-const LabAdminsOnboarding = lazy(
-  () => import("./pages/LabAdminsOnboarding/LabAdminsOnboarding")
-);
-const PromoCodesOnboarding = lazy(
-  () => import("./pages/PromoCodesOnboarding/PromoCodesOnboarding")
-);
+const LabOnboarding = lazy(() => import("./pages/LabOnboarding/LabOnboarding"))
+const LabAdminsOnboarding = lazy(() => import("./pages/LabAdminsOnboarding/LabAdminsOnboarding"))
+const PromoCodesOnboarding = lazy(() => import("./pages/PromoCodesOnboarding/PromoCodesOnboarding"))
+const PhlebosOnboarding = lazy(() => import("./pages/PhlebosOnboarding/PhlebosOnboarding"))
 const Landing = lazy(() => import("./pages/Landing/Landing"));
 const Login = lazy(() => import("./pages/Login/Login"));
 const ForgotPassword = lazy(
@@ -34,9 +31,7 @@ const ContactUs = lazy(() => import("./Components/ContactUs/ContactUs"));
 const LearnAboutDonation = lazy(
   () => import("./pages/LearnAboutDonation/LearnAboutDonation")
 ); // New import
-const PartnerRequest = lazy(
-  () => import("./pages/PartnerRequest/partnersRequest")
-);
+const PartnerRequest = lazy(() => import("./pages/PartnerRequest/partnersRequest"));
 
 // QueryClient with enhanced config
 const queryClient = new QueryClient({
@@ -57,6 +52,7 @@ const PATHS = {
   LabOnboarding: "/lab-onboarding",
   LabAdminsOnboarding: "/lab-admins-onboarding",
   PromoCodesOnboarding: "/promocodes-onboarding",
+  PhlebosOnboarding: "/phlebos-onboarding",
   REVIEWS: "/reviews",
   ABOUT_US: "/about-us",
   TERMS: "/terms-and-conditions",
@@ -132,7 +128,7 @@ const App = () => {
             },
           ],
         },
-        {
+                {
           path: PATHS.LabOnboarding,
           element: <ProtectedRoute />,
           children: [
@@ -146,7 +142,7 @@ const App = () => {
             },
           ],
         },
-        {
+                {
           path: PATHS.LabAdminsOnboarding,
           element: <ProtectedRoute />,
           children: [
@@ -160,7 +156,7 @@ const App = () => {
             },
           ],
         },
-        {
+                        {
           path: PATHS.PromoCodesOnboarding,
           element: <ProtectedRoute />,
           children: [
@@ -169,6 +165,20 @@ const App = () => {
               element: (
                 <Suspense fallback={<div>Loading...</div>}>
                   <PromoCodesOnboarding />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+                                {
+          path: PATHS.PhlebosOnboarding,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.PhlebosOnboarding,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <PhlebosOnboarding />
                 </Suspense>
               ),
             },
