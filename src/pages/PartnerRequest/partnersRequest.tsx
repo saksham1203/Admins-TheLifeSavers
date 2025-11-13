@@ -1,25 +1,15 @@
-// PartnersRequestPage.tsx (responsive modals: header fixed, body scrollable; show full labels on small devices)
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import {
-  FaArrowLeft,
-  FaSearch,
-  FaSyncAlt,
-  FaUserCheck,
-  FaUserTimes,
-  FaEye,
-  FaTimes,
-  FaPlus,
-  FaSpinner,
-} from "react-icons/fa";
+// src/pages/PartnersRequestPage.tsx
+import React from "react";
+import { FaArrowLeft, FaSearch, FaSyncAlt, FaUserCheck, FaUserTimes, FaEye, FaTimes, FaPlus, FaSpinner } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm } from "react-hook-form";
+import { usePartnerRequests } from "../../hooks/usePartnerRequests";
+import type { OnboardForm } from "../../services/partnersService";
 
 /**
  * PartnersRequestPage
- * - Modals constrained to 85vh
- * - Modal header fixed at top, body scrollable
- * - Small-screen header buttons show full labels
+ * UI-only page that uses usePartnerRequests hook.
  */
 
 // ----------------- Small UI helpers -----------------
@@ -42,63 +32,6 @@ const SectionCard: React.FC<{
   </div>
 );
 
-// ----------------- Confirm Modal -----------------
-const ConfirmModal: React.FC<{
-  open: boolean;
-  title?: string;
-  message?: string;
-  loading?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}> = ({ open, title = "Confirm", message = "", loading = false, onConfirm, onCancel }) => {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-        <h3 className="text-lg font-bold mb-2">{title}</h3>
-        <p className="text-sm text-gray-600 mb-4">{message}</p>
-        <div className="flex items-center justify-end gap-3">
-          <button onClick={onCancel} className="rounded-full bg-gray-100 px-4 py-2 font-semibold">
-            Cancel
-          </button>
-          <button onClick={onConfirm} disabled={loading} className="rounded-full bg-red-600 text-white px-4 py-2 font-semibold hover:bg-red-700">
-            {loading ? "Working..." : "Confirm"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ----------------- Types -----------------
-type PartnerRequest = {
-  id: string;
-  firstName: string;
-  lastName?: string;
-  email?: string;
-  mobile?: string;
-  dob?: string;
-  gender?: string;
-  partnerType?: string;
-  specifyCategory?: string | null;
-  shopName?: string;
-  pincode?: string;
-  address?: string;
-  status?: "PENDING" | "ACCEPTED" | "REJECTED";
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-type ApiListResp = {
-  success: boolean;
-  requests: PartnerRequest[];
-};
-
-// ----------------- Helpers -----------------
-function readTokenFromLocalStorage(): string | null {
-  return localStorage.getItem("token") || localStorage.getItem("authToken") || null;
-}
-
 function fmtDateIST(iso?: string) {
   if (!iso) return "—";
   try {
@@ -116,175 +49,14 @@ function initials(name = "") {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-// ----------------- Onboarding form types -----------------
-type OnboardForm = {
-  firstName: string;
-  lastName?: string;
-  email: string;
-  password: string;
-  mobile: string;
-  dob?: string;
-  gender?: string;
-  partnerType: string;
-  shopName?: string;
-  pincode?: string;
-  address?: string;
-};
+const MODAL_HEADER_HEIGHT = 64; // px (approx)
 
-// ----------------- Component -----------------
+// ----------------- Page -----------------
 const PartnersRequestPage: React.FC = () => {
   const navigate = useNavigate();
+  const hook = usePartnerRequests();
 
-  // state
-  const [items, setItems] = useState<PartnerRequest[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [, setError] = useState<string | null>(null);
-
-  // UI controls
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const pageSize = 8;
-  const [selectedStatus, setSelectedStatus] = useState<"ALL" | "PENDING" | "ACCEPTED" | "REJECTED">("ALL");
-
-  // detail modal
-  const [selected, setSelected] = useState<PartnerRequest | null>(null);
-  const [showModal, setShowModal] = useState(false);
-
-  // confirm modal for approve/reject
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ id: string; type: "approve" | "reject"; name?: string } | null>(null);
-
-  // Onboarding modal state
-  const [onboardOpen, setOnboardOpen] = useState(false);
-  const [onboardSubmitting, setOnboardSubmitting] = useState(false);
-
-  // fetch requests from your endpoint
-  const fetchRequests = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = readTokenFromLocalStorage();
-      const res = await fetch("https://dev-service-thelifesavers-in.onrender.com/api/partner-admin/requests", {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
-      }
-
-      const json = (await res.json()) as ApiListResp;
-      if (!json.success) {
-        throw new Error("API returned success: false");
-      }
-
-      setItems(json.requests ?? []);
-      setPage(1);
-    } catch (err: any) {
-      console.error("Failed to fetch partner requests", err);
-      setError(err?.message ?? "Failed to fetch");
-      toast.error("Failed to fetch partner requests");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Derived: filtered + paginated + status
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = items;
-    if (selectedStatus !== "ALL") {
-      list = list.filter((it) => it.status === selectedStatus);
-    }
-    if (!q) return list;
-    return list.filter((it) => {
-      const name = `${it.firstName ?? ""} ${it.lastName ?? ""}`.toLowerCase();
-      return (
-        name.includes(q) ||
-        (it.email ?? "").toLowerCase().includes(q) ||
-        (it.mobile ?? "").toLowerCase().includes(q) ||
-        (it.shopName ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [items, query, selectedStatus]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
-
-  // perform approve/reject action (with confirm modal + toast)
-  const performAction = async (id: string, type: "approve" | "reject") => {
-    setConfirmLoading(true);
-    setActionLoadingId(id);
-    try {
-      const token = readTokenFromLocalStorage();
-      const res = await fetch(
-        `https://dev-service-thelifesavers-in.onrender.com/api/partner-admin/requests/${id}/${type === "approve" ? "approve" : "reject"}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
-
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
-      }
-
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || `${type} failed`);
-
-      // update UI status
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === id ? { ...it, status: type === "approve" ? "ACCEPTED" : "REJECTED" } : it
-        )
-      );
-      toast.success(data.message ?? (type === "approve" ? "Approved" : "Rejected"));
-    } catch (err: any) {
-      console.error(`${type} failed`, err);
-      toast.error(`${type === "approve" ? "Approve" : "Reject"} failed: ${err?.message ?? "Unknown"}`);
-    } finally {
-      setConfirmLoading(false);
-      setActionLoadingId(null);
-      setConfirmOpen(false);
-      setPendingAction(null);
-    }
-  };
-
-  // ask confirm instead of window.confirm
-  const askConfirm = (id: string, type: "approve" | "reject", name?: string) => {
-    setPendingAction({ id, type, name });
-    setConfirmOpen(true);
-  };
-
-  const openDetails = (r: PartnerRequest) => {
-    setSelected(r);
-    setShowModal(true);
-  };
-
-  const counts = useMemo(() => {
-    return {
-      total: items.length,
-      pending: items.filter((i) => i.status === "PENDING").length,
-      accepted: items.filter((i) => i.status === "ACCEPTED").length,
-      rejected: items.filter((i) => i.status === "REJECTED").length,
-    };
-  }, [items]);
-
-  // ----------------- Onboarding form (inline) -----------------
+  // react-hook-form for onboard
   const { register, handleSubmit, reset, formState } = useForm<OnboardForm>({
     mode: "onChange",
     defaultValues: {
@@ -302,74 +74,27 @@ const PartnersRequestPage: React.FC = () => {
     },
   });
 
-  const onboardSubmit: SubmitHandler<OnboardForm> = async (data) => {
-    setOnboardSubmitting(true);
+  // wrapper: perform confirm action and show toast
+  const confirmAndPerform = async () => {
+    if (!hook.pendingAction) return;
     try {
-      const token = readTokenFromLocalStorage();
-      const res = await fetch("https://dev-service-thelifesavers-in.onrender.com/api/partners/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-          password: data.password,
-          mobile: data.mobile,
-          dob: data.dob,
-          gender: data.gender,
-          partnerType: data.partnerType,
-          shopName: data.shopName,
-          pincode: data.pincode,
-          address: data.address,
-        }),
-      });
-
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
-      }
-
-      const json = await res.json();
-      // expected: { success: true, message: "...", request: { id, email, status } }
-      if (!json.success) {
-        throw new Error(json.message || "Onboarding failed");
-      }
-
-      toast.success(json.message || "Partner request submitted. Awaiting SuperAdmin review.");
-
-      const newReq: PartnerRequest = {
-        id: json.request.id || json.request._id || Math.random().toString(36).slice(2, 9),
-        email: json.request.email,
-        status: (json.request.status as PartnerRequest["status"]) || "PENDING",
-        createdAt: new Date().toISOString(),
-        firstName: data.firstName,
-        lastName: data.lastName,
-        partnerType: data.partnerType,
-        shopName: data.shopName,
-        mobile: data.mobile,
-        pincode: data.pincode,
-        address: data.address,
-      };
-
-      // optimistic append and refresh counts + UI
-      setItems((prev) => [newReq, ...prev]);
-      reset();
-      setOnboardOpen(false);
+      await hook.performAction(hook.pendingAction.id, hook.pendingAction.type);
+      toast.success(hook.pendingAction.type === "approve" ? "Approved" : "Rejected");
     } catch (err: any) {
-      console.error("Onboard failed", err);
-      toast.error(err?.message || "Failed to submit partner request");
-    } finally {
-      setOnboardSubmitting(false);
+      toast.error(err?.message || "Action failed");
     }
   };
 
-  // constants for header height used in calc for modal body
-  const MODAL_HEADER_HEIGHT = 64; // px (approx)
+  const onboardSubmit = async (data: OnboardForm) => {
+    try {
+      await hook.onboardSubmit(data);
+      toast.success("Partner request submitted. Awaiting SuperAdmin review.");
+      reset();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to submit partner request");
+    }
+  };
 
-  // ----------------- Render -----------------
   return (
     <div className="min-h-screen bg-gray-50 flex items-start justify-center p-4 sm:p-6" style={{ paddingTop: "4rem", paddingBottom: "4rem" }}>
       <Toaster position="top-right" />
@@ -392,9 +117,9 @@ const PartnersRequestPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    setQuery("");
-                    setPage(1);
-                    fetchRequests();
+                    hook.setQuery("");
+                    hook.setPage(1);
+                    hook.fetchRequests();
                   }}
                   className="rounded-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 text-xs sm:text-sm font-semibold flex items-center gap-2 transition"
                 >
@@ -402,7 +127,7 @@ const PartnersRequestPage: React.FC = () => {
                   <span>Refresh</span>
                 </button>
 
-                <button onClick={() => setOnboardOpen(true)} className="ml-0 sm:ml-2 inline-flex items-center gap-2 bg-white text-red-600 font-semibold px-3 sm:px-4 py-2 rounded-full shadow hover:shadow-md text-xs sm:text-sm">
+                <button onClick={() => hook.setOnboardOpen(true)} className="ml-0 sm:ml-2 inline-flex items-center gap-2 bg-white text-red-600 font-semibold px-3 sm:px-4 py-2 rounded-full shadow hover:shadow-md text-xs sm:text-sm">
                   <FaPlus />
                   <span>New Partner</span>
                 </button>
@@ -414,19 +139,19 @@ const PartnersRequestPage: React.FC = () => {
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <div className="bg-white/10 rounded-xl p-2 sm:p-3 flex flex-col">
               <div className="text-xs text-white/90">Total</div>
-              <div className="text-lg font-bold">{counts.total}</div>
+              <div className="text-lg font-bold">{hook.counts.total}</div>
             </div>
             <div className="bg-white/10 rounded-xl p-2 sm:p-3 flex flex-col">
               <div className="text-xs text-white/90">Pending</div>
-              <div className="text-lg font-bold">{counts.pending}</div>
+              <div className="text-lg font-bold">{hook.counts.pending}</div>
             </div>
             <div className="bg-white/10 rounded-xl p-2 sm:p-3 flex flex-col">
               <div className="text-xs text-white/90">Accepted</div>
-              <div className="text-lg font-bold">{counts.accepted}</div>
+              <div className="text-lg font-bold">{hook.counts.accepted}</div>
             </div>
             <div className="bg-white/10 rounded-xl p-2 sm:p-3 flex flex-col">
               <div className="text-xs text-white/90">Rejected</div>
-              <div className="text-lg font-bold">{counts.rejected}</div>
+              <div className="text-lg font-bold">{hook.counts.rejected}</div>
             </div>
           </div>
         </div>
@@ -439,19 +164,19 @@ const PartnersRequestPage: React.FC = () => {
               <input
                 className="w-full pl-10 pr-10 py-2 rounded-full border bg-white/90 text-sm"
                 placeholder="Search by name, email, phone or shop"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") setPage(1); }}
+                value={hook.query}
+                onChange={(e) => hook.setQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") hook.setPage(1); }}
               />
-              {query && (
-                <button onClick={() => setQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-100" title="Clear">
+              {hook.query && (
+                <button onClick={() => hook.setQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-100" title="Clear">
                   <FaTimes />
                 </button>
               )}
             </div>
 
             <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600 ml-3">
-              <div>Showing <span className="font-semibold">{filtered.length}</span> requests</div>
+              <div>Showing <span className="font-semibold">{hook.filtered.length}</span> requests</div>
             </div>
           </div>
 
@@ -460,8 +185,8 @@ const PartnersRequestPage: React.FC = () => {
             {(["ALL", "PENDING", "ACCEPTED", "REJECTED"] as const).map((s) => (
               <button
                 key={s}
-                onClick={() => { setSelectedStatus(s as any); setPage(1); }}
-                className={`rounded-full px-3 py-2 text-xs sm:text-sm font-semibold transition ${selectedStatus === s ? "bg-red-600 text-white" : "bg-white border"}`}
+                onClick={() => { hook.setSelectedStatus(s as any); hook.setPage(1); }}
+                className={`rounded-full px-3 py-2 text-xs sm:text-sm font-semibold transition ${hook.selectedStatus === s ? "bg-red-600 text-white" : "bg-white border"}`}
               >
                 {s}
               </button>
@@ -471,13 +196,13 @@ const PartnersRequestPage: React.FC = () => {
 
         {/* Main content */}
         <SectionCard title={<span className="flex items-center gap-2">Requests</span>} right={<div className="text-xs text-gray-500">Actions: Approve / Reject</div>}>
-          {loading ? (
+          {hook.loading ? (
             <div className="py-12 text-center text-gray-500">Loading requests…</div>
-          ) : items.length === 0 ? (
+          ) : hook.items.length === 0 ? (
             <div className="py-12 text-center text-gray-500">
               No requests available.
               <div className="mt-3">
-                <button onClick={fetchRequests} className="rounded-full bg-red-600 text-white px-4 py-2">Reload</button>
+                <button onClick={() => hook.fetchRequests()} className="rounded-full bg-red-600 text-white px-4 py-2">Reload</button>
               </div>
             </div>
           ) : (
@@ -496,7 +221,7 @@ const PartnersRequestPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map((r) => (
+                    {hook.pageItems.map((r) => (
                       <tr key={r.id} className="odd:bg-white even:bg-gray-50 hover:bg-red-50 transition">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -521,17 +246,17 @@ const PartnersRequestPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2 flex-wrap">
-                            <button title="View details" onClick={() => openDetails(r)} className="rounded-full border px-2 py-1 text-xs hover:bg-red-50">
+                            <button title="View details" onClick={() => hook.openDetails(r)} className="rounded-full border px-2 py-1 text-xs hover:bg-red-50">
                               <FaEye />
                             </button>
 
                             {r.status === "PENDING" ? (
                               <>
-                                <button onClick={() => askConfirm(r.id, "approve", `${r.firstName} ${r.lastName ?? ""}`)} disabled={actionLoadingId === r.id} className="rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold hover:bg-green-700">
-                                  {actionLoadingId === r.id ? "..." : (<><FaUserCheck className="inline mr-1" />Approve</>)}
+                                <button onClick={() => hook.askConfirm(r.id, "approve", `${r.firstName} ${r.lastName ?? ""}`)} disabled={hook.actionLoadingId === r.id} className="rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold hover:bg-green-700">
+                                  {hook.actionLoadingId === r.id ? "..." : (<><FaUserCheck className="inline mr-1" />Approve</>)}
                                 </button>
-                                <button onClick={() => askConfirm(r.id, "reject", `${r.firstName} ${r.lastName ?? ""}`)} disabled={actionLoadingId === r.id} className="rounded-full bg-white border px-3 py-1 text-xs font-semibold hover:bg-red-50">
-                                  {actionLoadingId === r.id ? "..." : (<><FaUserTimes className="inline mr-1" />Reject</>)}
+                                <button onClick={() => hook.askConfirm(r.id, "reject", `${r.firstName} ${r.lastName ?? ""}`)} disabled={hook.actionLoadingId === r.id} className="rounded-full bg-white border px-3 py-1 text-xs font-semibold hover:bg-red-50">
+                                  {hook.actionLoadingId === r.id ? "..." : (<><FaUserTimes className="inline mr-1" />Reject</>)}
                                 </button>
                               </>
                             ) : (
@@ -547,7 +272,7 @@ const PartnersRequestPage: React.FC = () => {
 
               {/* card list for small screens */}
               <div className="md:hidden space-y-3">
-                {pageItems.map((r) => (
+                {hook.pageItems.map((r) => (
                   <div key={r.id} className="bg-white rounded-xl p-3 shadow-sm">
                     <div className="flex items-start gap-3">
                       <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold text-sm">{initials(`${r.firstName} ${r.lastName ?? ""}`)}</div>
@@ -566,11 +291,11 @@ const PartnersRequestPage: React.FC = () => {
                           <div>{r.status === "PENDING" ? pill("Pending", "bg-amber-50 text-amber-700 border-amber-200") : r.status === "ACCEPTED" ? pill("Accepted", "bg-green-50 text-green-700 border-green-200") : pill("Rejected", "bg-gray-50 text-gray-700 border-gray-200")}</div>
 
                           <div className="flex items-center gap-2">
-                            <button onClick={() => openDetails(r)} className="rounded-full border px-3 py-1 text-xs">View</button>
+                            <button onClick={() => hook.openDetails(r)} className="rounded-full border px-3 py-1 text-xs">View</button>
                             {r.status === "PENDING" && (
                               <>
-                                <button onClick={() => askConfirm(r.id, "approve", `${r.firstName} ${r.lastName ?? ""}`)} className="rounded-full bg-green-600 text-white px-3 py-1 text-xs">Approve</button>
-                                <button onClick={() => askConfirm(r.id, "reject", `${r.firstName} ${r.lastName ?? ""}`)} className="rounded-full bg-white border px-3 py-1 text-xs">Reject</button>
+                                <button onClick={() => hook.askConfirm(r.id, "approve", `${r.firstName} ${r.lastName ?? ""}`)} className="rounded-full bg-green-600 text-white px-3 py-1 text-xs">Approve</button>
+                                <button onClick={() => hook.askConfirm(r.id, "reject", `${r.firstName} ${r.lastName ?? ""}`)} className="rounded-full bg-white border px-3 py-1 text-xs">Reject</button>
                               </>
                             )}
                           </div>
@@ -583,10 +308,10 @@ const PartnersRequestPage: React.FC = () => {
 
               {/* Pagination */}
               <div className="mt-4 flex items-center justify-between flex-col sm:flex-row gap-3">
-                <div className="text-sm text-gray-500">Page {page} of {totalPages}</div>
+                <div className="text-sm text-gray-500">Page {hook.page} of {hook.totalPages}</div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { if (page > 1) setPage(page - 1); }} className="rounded-full border px-3 py-1 text-sm" disabled={page <= 1}>Prev</button>
-                  <button onClick={() => { if (page < totalPages) setPage(page + 1); }} className="rounded-full border px-3 py-1 text-sm" disabled={page >= totalPages}>Next</button>
+                  <button onClick={() => { if (hook.page > 1) hook.setPage(hook.page - 1); }} className="rounded-full border px-3 py-1 text-sm" disabled={hook.page <= 1}>Prev</button>
+                  <button onClick={() => { if (hook.page < hook.totalPages) hook.setPage(hook.page + 1); }} className="rounded-full border px-3 py-1 text-sm" disabled={hook.page >= hook.totalPages}>Next</button>
                 </div>
               </div>
             </>
@@ -595,7 +320,7 @@ const PartnersRequestPage: React.FC = () => {
       </div>
 
       {/* Details modal (header fixed, body scrollable, constrained to 85vh) */}
-      {showModal && selected && (
+      {hook.showModal && hook.selected && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div
             className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full"
@@ -603,7 +328,7 @@ const PartnersRequestPage: React.FC = () => {
           >
             {/* Header (fixed) */}
             <div className="flex-none bg-gradient-to-r from-red-600 via-red-500 to-red-400 text-white py-3 px-4 sm:px-6 relative">
-              <button onClick={() => setShowModal(false)} className="absolute top-3 right-3 p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-white">✕</button>
+              <button onClick={() => hook.setShowModal(false)} className="absolute top-3 right-3 p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-white">✕</button>
               <h3 className="text-lg sm:text-xl font-bold">Request details</h3>
             </div>
 
@@ -612,42 +337,42 @@ const PartnersRequestPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-gray-500">Name</div>
-                  <div className="font-medium">{selected.firstName} {selected.lastName}</div>
+                  <div className="font-medium">{hook.selected.firstName} {hook.selected.lastName}</div>
                   <div className="text-sm text-gray-500 mt-2">Shop</div>
-                  <div>{selected.shopName ?? "—"}</div>
+                  <div>{hook.selected.shopName ?? "—"}</div>
                   <div className="text-sm text-gray-500 mt-2">Type</div>
-                  <div>{selected.partnerType ?? "—"}</div>
+                  <div>{hook.selected.partnerType ?? "—"}</div>
                   <div className="text-sm text-gray-500 mt-2">Category</div>
-                  <div>{selected.specifyCategory ?? "—"}</div>
+                  <div>{hook.selected.specifyCategory ?? "—"}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Contact</div>
-                  <div className="break-words">{selected.email ?? "—"}</div>
+                  <div className="break-words">{hook.selected.email ?? "—"}</div>
                   <div className="text-sm text-gray-500 mt-2">Mobile</div>
-                  <div>{selected.mobile ?? "—"}</div>
+                  <div>{hook.selected.mobile ?? "—"}</div>
                   <div className="text-sm text-gray-500 mt-2">Address</div>
-                  <div className="text-sm break-words">{selected.address ?? "—"}</div>
+                  <div className="text-sm break-words">{hook.selected.address ?? "—"}</div>
                 </div>
               </div>
 
               <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
-                {selected.status === "PENDING" && (
+                {hook.selected.status === "PENDING" && (
                   <>
                     <button
-                      onClick={() => { setShowModal(false); askConfirm(selected.id, "approve", `${selected.firstName} ${selected.lastName ?? ""}`); }}
+                      onClick={() => { hook.setShowModal(false); hook.askConfirm(hook.selected!.id, "approve", `${hook.selected!.firstName} ${hook.selected!.lastName ?? ""}`); }}
                       className="rounded-full bg-green-600 text-white px-4 py-2 font-semibold hover:bg-green-700"
                     >
                       Approve
                     </button>
                     <button
-                      onClick={() => { setShowModal(false); askConfirm(selected.id, "reject", `${selected.firstName} ${selected.lastName ?? ""}`); }}
+                      onClick={() => { hook.setShowModal(false); hook.askConfirm(hook.selected!.id, "reject", `${hook.selected!.firstName} ${hook.selected!.lastName ?? ""}`); }}
                       className="rounded-full bg-white border px-4 py-2 font-semibold hover:bg-red-50"
                     >
                       Reject
                     </button>
                   </>
                 )}
-                <button onClick={() => setShowModal(false)} className="rounded-full bg-gray-100 px-4 py-2 font-semibold">Close</button>
+                <button onClick={() => hook.setShowModal(false)} className="rounded-full bg-gray-100 px-4 py-2 font-semibold">Close</button>
               </div>
             </div>
           </div>
@@ -655,9 +380,9 @@ const PartnersRequestPage: React.FC = () => {
       )}
 
       {/* Onboarding modal (header fixed, body scrollable, constrained to 85vh) */}
-      {onboardOpen && (
+      {hook.onboardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setOnboardOpen(false)} />
+          <div className="fixed inset-0 bg-black/40" onClick={() => hook.setOnboardOpen(false)} />
           <div
             className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full"
             style={{ maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
@@ -665,7 +390,7 @@ const PartnersRequestPage: React.FC = () => {
             {/* Header fixed */}
             <div className="flex-none bg-gradient-to-r from-red-600 via-red-500 to-red-400 text-white py-3 px-4 sm:px-6 relative">
               <h3 id="new-partner-title" className="text-lg sm:text-2xl font-bold">New Partner Registration</h3>
-              <button aria-label="Close" onClick={() => setOnboardOpen(false)} className="absolute top-3 right-3 text-white p-2 rounded-full bg-red-500/20 hover:bg-red-500/30">✕</button>
+              <button aria-label="Close" onClick={() => hook.setOnboardOpen(false)} className="absolute top-3 right-3 text-white p-2 rounded-full bg-red-500/20 hover:bg-red-500/30">✕</button>
             </div>
 
             {/* Body scrollable */}
@@ -752,8 +477,8 @@ const PartnersRequestPage: React.FC = () => {
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-end">
                   <button type="button" onClick={() => { reset(); }} className="w-full sm:w-auto px-4 py-2 rounded-md border">Reset</button>
-                  <button type="submit" disabled={!formState.isValid || onboardSubmitting} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
-                    {onboardSubmitting ? <FaSpinner className="animate-spin" /> : <span>Submit</span>}
+                  <button type="submit" disabled={!formState.isValid || hook.onboardSubmitting} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                    {hook.onboardSubmitting ? <FaSpinner className="animate-spin" /> : <span>Submit</span>}
                   </button>
                 </div>
               </form>
@@ -763,14 +488,22 @@ const PartnersRequestPage: React.FC = () => {
       )}
 
       {/* Confirm modal */}
-      <ConfirmModal
-        open={confirmOpen}
-        loading={confirmLoading}
-        title={pendingAction ? (pendingAction.type === "approve" ? "Approve partner" : "Reject partner") : "Confirm"}
-        message={pendingAction ? `Are you sure you want to ${pendingAction.type} ${pendingAction.name ?? "this partner"}?` : ""}
-        onConfirm={() => { if (pendingAction) performAction(pendingAction.id, pendingAction.type); }}
-        onCancel={() => { setConfirmOpen(false); setPendingAction(null); }}
-      />
+      {hook.confirmOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold mb-2">{hook.pendingAction ? (hook.pendingAction.type === "approve" ? "Approve partner" : "Reject partner") : "Confirm"}</h3>
+            <p className="text-sm text-gray-600 mb-4">{hook.pendingAction ? `Are you sure you want to ${hook.pendingAction.type} ${hook.pendingAction.name ?? "this partner"}?` : ""}</p>
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => { hook.setConfirmOpen(false); }} className="rounded-full bg-gray-100 px-4 py-2 font-semibold">
+                Cancel
+              </button>
+              <button onClick={confirmAndPerform} disabled={hook.confirmLoading} className="rounded-full bg-red-600 text-white px-4 py-2 font-semibold hover:bg-red-700">
+                {hook.confirmLoading ? "Working..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
