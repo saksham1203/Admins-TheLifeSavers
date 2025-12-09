@@ -44,7 +44,7 @@ interface PhleboItem {
   updatedAt?: string;
 }
 
-const API_BASE = "https://dev-service-thelifesavers-in.onrender.com/api";
+const API_BASE = "https://services.thelifesavers.in/api";
 
 
 async function getAuthToken(): Promise<string | null> {
