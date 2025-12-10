@@ -1,4 +1,4 @@
-// LabOnboarding.tsx
+// src/pages/LabOnboarding.tsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import toast, { Toaster } from "react-hot-toast";
@@ -17,12 +17,13 @@ interface PackageItem {
   id: string;
   labId: string;
   name: string;
-  includedTests?: string | string[]; // server returns a stringified array sometimes
+  includedTests?: string | string[]; // server sometimes returns a stringified array
   totalParams?: number;
   mrp?: number;
   discounted?: number;
   preparation?: string;
   reportTime?: string;
+  description?: string;
 }
 
 interface TestItem {
@@ -35,6 +36,7 @@ interface TestItem {
   discounted?: number;
   preparation?: string;
   reportTime?: string;
+  description?: string;
 }
 
 interface LabItem {
@@ -154,6 +156,7 @@ const LabOnboarding: React.FC = () => {
     discounted: "",
     preparation: "",
     reportTime: "",
+    description: "",
   });
 
   const [pkgErrors, setPkgErrors] = useState<Record<string, string>>({});
@@ -167,6 +170,7 @@ const LabOnboarding: React.FC = () => {
     discounted: "",
     preparation: "",
     reportTime: "",
+    description: "",
   });
 
   const [testErrors, setTestErrors] = useState<Record<string, string>>({});
@@ -272,6 +276,7 @@ const LabOnboarding: React.FC = () => {
       discounted: "",
       preparation: "",
       reportTime: "",
+      description: "",
     });
     setTestForm({
       name: "",
@@ -281,6 +286,7 @@ const LabOnboarding: React.FC = () => {
       discounted: "",
       preparation: "",
       reportTime: "",
+      description: "",
     });
     setPkgErrors({});
     setTestErrors({});
@@ -319,6 +325,7 @@ const LabOnboarding: React.FC = () => {
     if (!pkgForm.mrp.trim() || Number(pkgForm.mrp) <= 0) e.mrp = "MRP must be a positive number";
     if (pkgForm.discounted && Number(pkgForm.discounted) < 0) e.discounted = "Discounted must be >= 0";
     if (pkgForm.discounted && pkgForm.mrp && Number(pkgForm.discounted) > Number(pkgForm.mrp)) e.discounted = "Discounted cannot exceed MRP";
+    // description is optional - no validation
     setPkgErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -330,6 +337,7 @@ const LabOnboarding: React.FC = () => {
     if (!testForm.mrp.trim() || Number(testForm.mrp) <= 0) e.mrp = "MRP must be a positive number";
     if (testForm.discounted && Number(testForm.discounted) < 0) e.discounted = "Discounted must be >= 0";
     if (testForm.discounted && testForm.mrp && Number(testForm.discounted) > Number(testForm.mrp)) e.discounted = "Discounted cannot exceed MRP";
+    // description optional
     setTestErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -347,25 +355,25 @@ const LabOnboarding: React.FC = () => {
         totalParams: Number(pkgForm.totalParams) || 0,
         mrp: Number(pkgForm.mrp) || 0,
         discounted: Number(pkgForm.discounted) || 0,
-        preparation: pkgForm.preparation,
-        reportTime: pkgForm.reportTime,
+        preparation: pkgForm.preparation || undefined,
+        reportTime: pkgForm.reportTime || undefined,
+        description: pkgForm.description?.trim() || undefined,
       };
       const res = await postPackageToApi(activeLabForPackage.id, body);
       if (res?.success) {
         toast.success(res.message || "Package added");
-        // server returns pkg object (example provided earlier). Prefer res.pkg else fall back to res.data
+        // server returns pkg object (often in res.pkg). fallbacks applied.
         const newPkg: PackageItem = res.pkg || res.data || {
           id: Math.random().toString(36).slice(2),
           labId: activeLabForPackage.id,
           ...body,
         };
 
-        // ensure includedTests is a string or array consistent with server: convert to array
+        // ensure includedTests is an array
         if (typeof newPkg.includedTests === "string") {
           try {
             newPkg.includedTests = JSON.parse(newPkg.includedTests);
           } catch {
-            // leave as-is or convert to array by splitting (fallback)
             newPkg.includedTests = (newPkg.includedTests as any).toString().replace(/^\[|\]$/g, "").split(",").map((s: string) => s.trim()).filter(Boolean);
           }
         }
@@ -378,7 +386,7 @@ const LabOnboarding: React.FC = () => {
         updateLabInState(updatedLab);
         setActiveLabForPackage(updatedLab);
         setPackageSuccess("Package added successfully ✅");
-        setPkgForm({ name: "", includedTests: "", totalParams: "", mrp: "", discounted: "", preparation: "", reportTime: "" });
+        setPkgForm({ name: "", includedTests: "", totalParams: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" });
         setTimeout(() => setPackageSuccess(null), 2500);
       } else {
         toast.error(res?.message || "Failed to add package");
@@ -403,8 +411,10 @@ const LabOnboarding: React.FC = () => {
         parameters: Number(testForm.parameters) || 0,
         mrp: Number(testForm.mrp) || 0,
         discounted: Number(testForm.discounted) || 0,
-        preparation: testForm.preparation || "",
-        reportTime: testForm.reportTime || "",
+        preparation: testForm.preparation || undefined,
+        reportTime: testForm.reportTime || undefined,
+        description: testForm.description?.trim() || undefined,
+        code: testForm.code?.trim() || undefined,
       };
       const res = await postTestToApi(activeLabForPackage.id, body);
       if (res?.success) {
@@ -424,7 +434,7 @@ const LabOnboarding: React.FC = () => {
         updateLabInState(updatedLab);
         setActiveLabForPackage(updatedLab);
         setTestSuccess("Test added successfully ✅");
-        setTestForm({ name: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "" });
+        setTestForm({ name: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" });
         setTimeout(() => setTestSuccess(null), 2500);
       } else {
         toast.error(res?.message || "Failed to add test");
@@ -525,7 +535,7 @@ const LabOnboarding: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal: New Lab (card-styled modal matching header design) */}
+      {/* Modal: New Lab */}
       {isModalOpen && (
         <div role="dialog" aria-modal="true" aria-labelledby="new-lab-title" className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* backdrop */}
@@ -717,8 +727,13 @@ const LabOnboarding: React.FC = () => {
                         <input value={pkgForm.preparation} onChange={(e) => setPkgForm((p) => ({ ...p, preparation: e.target.value }))} placeholder="Fasting 12 hrs" className="mt-1 block w-full px-3 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-100 border-gray-200" />
                       </div>
 
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Description (optional)</label>
+                        <textarea value={pkgForm.description} onChange={(e) => setPkgForm((p) => ({ ...p, description: e.target.value }))} placeholder="Short description about the package" className="mt-1 block w-full px-3 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-100 border-gray-200" rows={3} />
+                      </div>
+
                       <div className="flex items-center justify-end gap-3">
-                        <button type="button" onClick={() => setPkgForm({ name: "", includedTests: "", totalParams: "", mrp: "", discounted: "", preparation: "", reportTime: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
+                        <button type="button" onClick={() => setPkgForm({ name: "", includedTests: "", totalParams: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
 
                         <button type="submit" disabled={isPostingPackage} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white shadow hover:brightness-95 transition disabled:opacity-60">
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M5 12h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -780,8 +795,13 @@ const LabOnboarding: React.FC = () => {
                         <input value={testForm.preparation} onChange={(e) => setTestForm((p) => ({ ...p, preparation: e.target.value }))} placeholder="No special preparation required" className="mt-1 block w-full px-3 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-100 border-gray-200" />
                       </div>
 
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Description (optional)</label>
+                        <textarea value={testForm.description} onChange={(e) => setTestForm((p) => ({ ...p, description: e.target.value }))} placeholder="Short description about the test" className="mt-1 block w-full px-3 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-100 border-gray-200" rows={3} />
+                      </div>
+
                       <div className="flex items-center justify-end gap-3">
-                        <button type="button" onClick={() => setTestForm({ name: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
+                        <button type="button" onClick={() => setTestForm({ name: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
 
                         <button type="submit" disabled={isPostingTest} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white shadow hover:brightness-95 transition disabled:opacity-60">
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M5 12h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -848,6 +868,10 @@ const LabOnboarding: React.FC = () => {
                                 <div className="text-xs text-gray-500 font-mono">{pkg.id}</div>
                               </div>
                               <div className="text-xs text-gray-500 mt-2">{included.length > 0 ? included.join(" · ") : "No tests listed"}</div>
+
+                              {pkg.description && (
+                                <div className="mt-2 text-sm text-gray-700">{pkg.description}</div>
+                              )}
                             </div>
 
                             <div className="text-right">
@@ -889,6 +913,10 @@ const LabOnboarding: React.FC = () => {
                             <div className="text-xs text-gray-500 font-mono">{t.id}</div>
                           </div>
                           <div className="text-xs text-gray-500 mt-2">{t.preparation || "No preparation specified"}</div>
+
+                          {t.description && (
+                            <div className="mt-2 text-sm text-gray-700">{t.description}</div>
+                          )}
                         </div>
 
                         <div className="text-right">
