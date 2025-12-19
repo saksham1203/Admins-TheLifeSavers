@@ -32,6 +32,7 @@ interface TestItem {
   name: string;
   code?: string;
   parameters?: number;
+  includedTests?: string | string[]; // ✅ NEW
   mrp?: number;
   discounted?: number;
   preparation?: string;
@@ -166,6 +167,7 @@ const LabOnboarding: React.FC = () => {
     name: "",
     code: "",
     parameters: "",
+    includedTests: "", // ✅ NEW
     mrp: "",
     discounted: "",
     preparation: "",
@@ -282,6 +284,7 @@ const LabOnboarding: React.FC = () => {
       name: "",
       code: "",
       parameters: "",
+      includedTests: "",
       mrp: "",
       discounted: "",
       preparation: "",
@@ -334,6 +337,7 @@ const LabOnboarding: React.FC = () => {
     const e: Record<string, string> = {};
     if (!testForm.name.trim()) e.name = "Test name is required";
     if (!testForm.parameters.trim() || Number(testForm.parameters) <= 0) e.parameters = "Parameters must be a positive number";
+    if (!testForm.includedTests.trim())e.includedTests = "At least one included test is required"; // ✅ NEW
     if (!testForm.mrp.trim() || Number(testForm.mrp) <= 0) e.mrp = "MRP must be a positive number";
     if (testForm.discounted && Number(testForm.discounted) < 0) e.discounted = "Discounted must be >= 0";
     if (testForm.discounted && testForm.mrp && Number(testForm.discounted) > Number(testForm.mrp)) e.discounted = "Discounted cannot exceed MRP";
@@ -410,6 +414,7 @@ const LabOnboarding: React.FC = () => {
         name: testForm.name.trim(),
         parameters: Number(testForm.parameters) || 0,
         mrp: Number(testForm.mrp) || 0,
+        includedTests: testForm.includedTests.split(",").map((s) => s.trim()).filter(Boolean), // ✅ SAME AS PACKAGE
         discounted: Number(testForm.discounted) || 0,
         preparation: testForm.preparation || undefined,
         reportTime: testForm.reportTime || undefined,
@@ -434,7 +439,7 @@ const LabOnboarding: React.FC = () => {
         updateLabInState(updatedLab);
         setActiveLabForPackage(updatedLab);
         setTestSuccess("Test added successfully ✅");
-        setTestForm({ name: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" });
+        setTestForm({ name: "", includedTests: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" });
         setTimeout(() => setTestSuccess(null), 2500);
       } else {
         toast.error(res?.message || "Failed to add test");
@@ -763,6 +768,28 @@ const LabOnboarding: React.FC = () => {
                         </div>
                       </div>
 
+                      <div>
+  <label className="block text-xs font-medium text-gray-700">
+    Included tests (comma separated)
+  </label>
+  <input
+    value={testForm.includedTests}
+    onChange={(e) =>
+      setTestForm((p) => ({ ...p, includedTests: e.target.value }))
+    }
+    placeholder="Urea, Creatinine, Sodium"
+    className={`mt-1 block w-full px-3 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-100 ${
+      testErrors.includedTests ? "border-red-500 ring-red-50" : "border-gray-200"
+    }`}
+  />
+  {testErrors.includedTests && (
+    <p className="text-red-500 text-xs mt-1">
+      {testErrors.includedTests}
+    </p>
+  )}
+</div>
+
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-gray-700">Parameters (count)</label>
@@ -801,7 +828,7 @@ const LabOnboarding: React.FC = () => {
                       </div>
 
                       <div className="flex items-center justify-end gap-3">
-                        <button type="button" onClick={() => setTestForm({ name: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
+                        <button type="button" onClick={() => setTestForm({ name: "", includedTests: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
 
                         <button type="submit" disabled={isPostingTest} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white shadow hover:brightness-95 transition disabled:opacity-60">
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M5 12h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
