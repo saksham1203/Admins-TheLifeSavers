@@ -11,6 +11,7 @@ interface LabAdminFormInput {
   password: string;
   phone: string;
   labId: string;
+  labIds: string[];
 }
 
 interface LabItem {
@@ -25,10 +26,11 @@ interface AdminItem {
   email: string;
   phone?: string;
   labId?: string;
+  labIds?: string[];
   createdAt?: string;
 }
 
-const API_BASE = "https://services.thelifesavers.in/api"; // adjust to your environment
+const API_BASE = "http://localhost:5000/api"; // adjust to your environment
 
 async function getAuthToken(): Promise<string | null> {
   const { value } = await Preferences.get({ key: "token" });
@@ -78,7 +80,7 @@ const LabAdminsOnboarding: React.FC = () => {
     handleSubmit,
     reset,
     formState: { errors, isValid },
-  } = useForm<LabAdminFormInput>({ mode: "onChange", defaultValues: { name: "", email: "", password: "", phone: "", labId: "" } });
+  } = useForm<LabAdminFormInput>({ mode: "onChange", defaultValues: { name: "", email: "", password: "", phone: "", labId: "", labIds: [] } });
 
   const fetchLabs = useCallback(async () => {
     setIsLoadingLabs(true);
@@ -117,53 +119,83 @@ const LabAdminsOnboarding: React.FC = () => {
     }
   }, [isModalOpen]);
 
-  const onSubmit: SubmitHandler<LabAdminFormInput> = useCallback(
-    async (formData) => {
-      setIsSubmitting(true);
-      try {
-        const payload: Partial<LabAdminFormInput> = {
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-          password: formData.password,
-          phone: formData.phone.trim(),
-          labId: formData.labId,
+const onSubmit: SubmitHandler<LabAdminFormInput> = useCallback(
+  async (formData) => {
+    setIsSubmitting(true);
+
+    try {
+      // Normalize labIds (multi-select)
+      const labIds = Array.isArray(formData.labIds)
+        ? formData.labIds
+        : [];
+
+      if (labIds.length === 0) {
+        toast.error("Please select at least one lab");
+        return;
+      }
+
+      // Payload sent to backend (backward compatible)
+      const payload: Partial<LabAdminFormInput> & { labIds: string[] } = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        phone: formData.phone.trim(),
+
+        // 👇 keep existing field for backward compatibility
+        labId: labIds[0],
+
+        // 👇 NEW: multiple labs
+        labIds,
+      };
+
+      const res = await postAdminToApi(payload);
+
+      if (res?.success && res?.admin) {
+        toast.success(res.message || "Admin registered");
+
+        const newAdmin: AdminItem = {
+          id: res.admin.id || res.admin._id,
+          name: res.admin.name,
+          email: res.admin.email,
+          phone: payload.phone,
+          labId: payload.labId,     // fallback
+          labIds: payload.labIds,   // NEW
+          createdAt: new Date().toISOString(),
         };
 
-        const res = await postAdminToApi(payload);
-        if (res?.success && res?.admin) {
-          toast.success(res.message || "Admin registered");
-          const newAdmin: AdminItem = {
-            id: res.admin.id || res.admin._id,
-            name: res.admin.name,
-            email: res.admin.email,
-            phone: payload.phone,
-            labId: payload.labId,
-            createdAt: new Date().toISOString(),
-          };
-          setAdmins((p) => [newAdmin, ...p]);
-          reset();
-          setIsModalOpen(false);
+        setAdmins((prev) => [newAdmin, ...prev]);
 
-          setTimeout(() => {
-            try {
-              const el = document.getElementById(`admin-card-${newAdmin.id}`);
-              el?.scrollIntoView({ behavior: "smooth", block: "center" });
-              el?.classList.add("ring", "ring-red-200");
-              setTimeout(() => el?.classList.remove("ring", "ring-red-200"), 1600);
-            } catch (e) {}
-          }, 120);
-        } else {
-          toast.error(res?.message || "Unexpected server response");
-        }
-      } catch (err: any) {
-        console.error("register admin error", err);
-        toast.error(err?.response?.data?.message || err?.message || "Failed to register admin");
-      } finally {
-        setIsSubmitting(false);
+        reset();
+        setIsModalOpen(false);
+
+        // Highlight newly added admin card
+        setTimeout(() => {
+          try {
+            const el = document.getElementById(`admin-card-${newAdmin.id}`);
+            el?.scrollIntoView({ behavior: "smooth", block: "center" });
+            el?.classList.add("ring", "ring-red-200");
+            setTimeout(() => el?.classList.remove("ring", "ring-red-200"), 1600);
+          } catch {
+            /* noop */
+          }
+        }, 120);
+      } else {
+        toast.error(res?.message || "Unexpected server response");
       }
-    },
-    [reset]
-  );
+    } catch (err: any) {
+      console.error("register admin error", err);
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to register admin"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+  [reset]
+);
+
 
   return (
     <>
@@ -224,7 +256,14 @@ const LabAdminsOnboarding: React.FC = () => {
 
                         <div className="mt-2 flex items-center justify-between">
                           <div className="text-xs text-gray-500">Phone: {admin.phone ?? '—'}</div>
-                          <div className="text-xs text-gray-500">Lab: {labs.find(l => l.id === admin.labId)?.name ?? (admin.labId ?? '—')}</div>
+                          <div className="text-xs text-gray-500">
+                            Labs:
+                            {admin.labIds?.length
+                              ? admin.labIds
+                                .map(id => labs.find(l => l.id === id)?.name ?? id)
+                                .join(", ")
+                              : labs.find(l => l.id === admin.labId)?.name ?? "—"}
+                          </div>
                         </div>
                       </div>
                     </article>
@@ -305,11 +344,15 @@ const LabAdminsOnboarding: React.FC = () => {
                   <div>
                     <label htmlFor="labId" className="block text-sm font-medium text-gray-700">Assign to Lab</label>
                     <select
-                      id="labId"
-                      {...register("labId", { required: "Select a lab" })}
-                      className={`mt-1 block w-full px-3 py-2 border ${errors.labId ? "border-red-500" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm`}
-                      aria-invalid={errors.labId ? "true" : "false"}
-                    >
+  id="labIds"
+  multiple
+  {...register("labIds", {
+    required: "Select at least one lab"
+  })}
+  className={`mt-1 block w-full px-3 py-2 border ${
+    errors.labIds ? "border-red-500" : "border-gray-300"
+  } rounded-md shadow-sm focus:outline-none focus:ring-red-500`}
+>
                       <option value="">Select lab</option>
                       {isLoadingLabs ? <option value="">Loading labs...</option> : labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
