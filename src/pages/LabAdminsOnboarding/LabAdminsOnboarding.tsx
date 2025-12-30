@@ -30,7 +30,7 @@ interface AdminItem {
   createdAt?: string;
 }
 
-const API_BASE = "http://localhost:5000/api"; // adjust to your environment
+const API_BASE = "https://services.thelifesavers.in/api"; // adjust to your environment
 
 async function getAuthToken(): Promise<string | null> {
   const { value } = await Preferences.get({ key: "token" });
