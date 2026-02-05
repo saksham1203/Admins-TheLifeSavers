@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
-import { FaPlus, FaSpinner, FaUpload, FaFileCsv, FaCheckCircle } from "react-icons/fa";
+import { FaPlus, FaSpinner, FaUpload, FaFileCsv, } from "react-icons/fa";
 import { Preferences } from "@capacitor/preferences";
 
 const API_BASE = "https://services.thelifesavers.in/api";
@@ -110,9 +110,48 @@ const PartnersPricingLists: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-10 text-center text-gray-500">
-              <FaCheckCircle className="mx-auto text-4xl text-red-500 mb-4" />
-              <p className="text-sm">No uploads yet. Start by uploading a pricing CSV for any lab & partner type.</p>
+            <div className="p-10">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="text-left">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-2">How to prepare your CSV</h2>
+                  <ul className="list-disc pl-5 text-sm text-gray-600 space-y-2">
+                    <li>File must be in <strong>.csv</strong> format</li>
+                    <li>Column names must match <strong>exactly</strong> (case‑sensitive)</li>
+                    <li>Prices should be numeric (no symbols)</li>
+                    <li>For packages, use <strong>PACKAGE NAME</strong> instead of TEST NAME</li>
+                    <li>STRICT_FILE_MATCH is enforced on upload</li>
+                  </ul>
+                </div>
+
+                <div className="bg-gray-50 border rounded-xl p-4 overflow-auto">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Sample CSV format</p>
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-gray-200 text-gray-700">
+                        <th className="border px-2 py-1">S. No.</th>
+                        <th className="border px-2 py-1">TEST NAME</th>
+                        <th className="border px-2 py-1">B2B Price</th>
+                        <th className="border px-2 py-1">B2C Price</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-gray-600">
+                      <tr>
+                        <td className="border px-2 py-1">1</td>
+                        <td className="border px-2 py-1">CBC</td>
+                        <td className="border px-2 py-1">50</td>
+                        <td className="border px-2 py-1">100</td>
+                      </tr>
+                      <tr>
+                        <td className="border px-2 py-1">2</td>
+                        <td className="border px-2 py-1">HbA1c</td>
+                        <td className="border px-2 py-1">120</td>
+                        <td className="border px-2 py-1">250</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p className="mt-2 text-[11px] text-gray-500">For packages, replace <strong>TEST NAME</strong> with <strong>PACKAGE NAME</strong></p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -166,4 +205,3 @@ const PartnersPricingLists: React.FC = () => {
 };
 
 export default React.memo(PartnersPricingLists);
-    
