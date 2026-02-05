@@ -33,6 +33,8 @@ const LearnAboutDonation = lazy(
 ); // New import
 const PartnerRequest = lazy(() => import("./pages/PartnerRequest/partnersRequest"));
 
+const PartnersPricingLists = lazy(() => import("./pages/PartnersPricingLists/PartnersPricingLists"))
+
 // QueryClient with enhanced config
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,6 +64,7 @@ const PATHS = {
   CONTACT_US: "/contact-us", // New path for ContactUs page
   LEARN_ABOUT_DONATION: "/learn-about-donation", // New path for LearnAboutDonation
   PartnerRequest: "/partner-requests",
+  PARTNERPRICINGLISTS: "/partnerspricinglists"
 };
 
 const App = () => {
@@ -170,7 +173,7 @@ const App = () => {
             },
           ],
         },
-                                {
+        {
           path: PATHS.PhlebosOnboarding,
           element: <ProtectedRoute />,
           children: [
@@ -179,6 +182,20 @@ const App = () => {
               element: (
                 <Suspense fallback={<div>Loading...</div>}>
                   <PhlebosOnboarding />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
+          path: PATHS.PARTNERPRICINGLISTS,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.PARTNERPRICINGLISTS,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <PartnersPricingLists />
                 </Suspense>
               ),
             },
