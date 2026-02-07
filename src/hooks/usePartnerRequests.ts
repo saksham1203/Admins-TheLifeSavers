@@ -159,6 +159,7 @@ export function usePartnerRequests() {
         mobile: data.mobile,
         pincode: data.pincode,
         address: data.address,
+        isAdmin: data.isAdmin ?? false, // 👈 ADD THIS
       };
 
       // optimistic append

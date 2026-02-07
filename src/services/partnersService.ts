@@ -18,6 +18,7 @@ export type PartnerRequest = {
   status?: "PENDING" | "ACCEPTED" | "REJECTED";
   createdAt?: string;
   updatedAt?: string;
+  isAdmin?: boolean; // 👈 OPTIONAL (safe to add)
 };
 
 export type ApiListResp = {
@@ -37,9 +38,10 @@ export type OnboardForm = {
   shopName?: string;
   pincode?: string;
   address?: string;
+  isAdmin?: boolean; // 👈 ADD THIS
 };
 
-const BASE = "https://dev-service-thelifesavers-in.onrender.com/api";
+const BASE = "https://services.thelifesavers.in/api";
 
 function readTokenFromLocalStorage(): string | null {
   // accepts either token key used by different parts of the app

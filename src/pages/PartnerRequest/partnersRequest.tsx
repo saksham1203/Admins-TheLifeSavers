@@ -71,6 +71,7 @@ const PartnersRequestPage: React.FC = () => {
       shopName: "",
       pincode: "",
       address: "",
+      isAdmin: false, // 👈 ADD THIS
     },
   });
 
@@ -473,6 +474,21 @@ const PartnersRequestPage: React.FC = () => {
                     <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
                     <input id="address" type="text" {...register("address")} className={`mt-1 block w-full px-3 py-2 text-sm border ${formState.errors.address ? "border-red-500" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500`} />
                   </div>
+                </div>
+
+                <div className="flex items-start gap-3 bg-gray-50 border rounded-lg p-3">
+                  <input
+                    id="isAdmin"
+                    type="checkbox"
+                    {...register("isAdmin")}
+                    className="mt-1 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                  />
+                  <label htmlFor="isAdmin" className="text-sm text-gray-700">
+                    <span className="font-semibold">Register as Admin Partner</span>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Admin partners may get access to additional dashboards and management tools.
+                    </div>
+                  </label>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-end">
