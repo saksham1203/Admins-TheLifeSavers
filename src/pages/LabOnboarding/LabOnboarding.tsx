@@ -16,6 +16,8 @@ interface LabFormInput {
 interface PackageItem {
   id: string;
   labId: string;
+  labName?: string;
+  packageId?: string;
   name: string;
   includedTests?: string | string[]; // server sometimes returns a stringified array
   totalParams?: number;
@@ -29,6 +31,8 @@ interface PackageItem {
 interface TestItem {
   id: string;
   labId: string;
+  labName?: string;
+  testId?: string;
   name: string;
   code?: string;
   parameters?: number;
@@ -150,6 +154,7 @@ const LabOnboarding: React.FC = () => {
 
   // forms for package & test using local state
   const [pkgForm, setPkgForm] = useState({
+    packageId: "",
     name: "",
     includedTests: "",
     totalParams: "",
@@ -164,6 +169,7 @@ const LabOnboarding: React.FC = () => {
 
   // testForm with full fields
   const [testForm, setTestForm] = useState({
+    testId: "",
     name: "",
     code: "",
     parameters: "",
@@ -271,6 +277,7 @@ const LabOnboarding: React.FC = () => {
   function openPackageModal(lab: LabItem) {
     setActiveLabForPackage(lab);
     setPkgForm({
+      packageId: "",
       name: "",
       includedTests: "",
       totalParams: "",
@@ -281,6 +288,7 @@ const LabOnboarding: React.FC = () => {
       description: "",
     });
     setTestForm({
+      testId: "",
       name: "",
       code: "",
       parameters: "",
@@ -322,6 +330,7 @@ const LabOnboarding: React.FC = () => {
   // ---------- Validation helpers ----------
   function validatePackageForm() {
     const e: Record<string, string> = {};
+    if (!pkgForm.packageId.trim()) e.packageId = "Package ID is required";
     if (!pkgForm.name.trim()) e.name = "Package name is required";
     if (!pkgForm.includedTests.trim()) e.includedTests = "At least one included test is required";
     if (!pkgForm.totalParams.trim() || Number(pkgForm.totalParams) <= 0) e.totalParams = "Total params must be a positive number";
@@ -335,6 +344,7 @@ const LabOnboarding: React.FC = () => {
 
   function validateTestForm() {
     const e: Record<string, string> = {};
+    if (!testForm.testId.trim()) e.testId = "Test ID is required";
     if (!testForm.name.trim()) e.name = "Test name is required";
     if (!testForm.parameters.trim() || Number(testForm.parameters) <= 0) e.parameters = "Parameters must be a positive number";
     if (!testForm.includedTests.trim())e.includedTests = "At least one included test is required"; // ✅ NEW
@@ -354,6 +364,8 @@ const LabOnboarding: React.FC = () => {
     setIsPostingPackage(true);
     try {
       const body = {
+        labName: activeLabForPackage.name?.trim() || undefined,
+        packageId: pkgForm.packageId.trim(),
         name: pkgForm.name.trim(),
         includedTests: pkgForm.includedTests.split(",").map((s) => s.trim()).filter(Boolean),
         totalParams: Number(pkgForm.totalParams) || 0,
@@ -390,7 +402,17 @@ const LabOnboarding: React.FC = () => {
         updateLabInState(updatedLab);
         setActiveLabForPackage(updatedLab);
         setPackageSuccess("Package added successfully ✅");
-        setPkgForm({ name: "", includedTests: "", totalParams: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" });
+        setPkgForm({
+          packageId: "",
+          name: "",
+          includedTests: "",
+          totalParams: "",
+          mrp: "",
+          discounted: "",
+          preparation: "",
+          reportTime: "",
+          description: "",
+        });
         setTimeout(() => setPackageSuccess(null), 2500);
       } else {
         toast.error(res?.message || "Failed to add package");
@@ -411,6 +433,8 @@ const LabOnboarding: React.FC = () => {
     setIsPostingTest(true);
     try {
       const body = {
+        labName: activeLabForPackage.name?.trim() || undefined,
+        testId: testForm.testId.trim(),
         name: testForm.name.trim(),
         parameters: Number(testForm.parameters) || 0,
         mrp: Number(testForm.mrp) || 0,
@@ -439,7 +463,18 @@ const LabOnboarding: React.FC = () => {
         updateLabInState(updatedLab);
         setActiveLabForPackage(updatedLab);
         setTestSuccess("Test added successfully ✅");
-        setTestForm({ name: "", includedTests: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" });
+        setTestForm({
+          testId: "",
+          name: "",
+          includedTests: "",
+          code: "",
+          parameters: "",
+          mrp: "",
+          discounted: "",
+          preparation: "",
+          reportTime: "",
+          description: "",
+        });
         setTimeout(() => setTestSuccess(null), 2500);
       } else {
         toast.error(res?.message || "Failed to add test");
@@ -701,6 +736,12 @@ const LabOnboarding: React.FC = () => {
                     {packageSuccess && (<div className="mb-3 p-2 text-sm bg-green-50 border border-green-100 text-green-800 rounded">{packageSuccess}</div>)}
 
                     <form onSubmit={handleAddPackage} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Package ID</label>
+                        <input value={pkgForm.packageId} onChange={(e) => setPkgForm((p) => ({ ...p, packageId: e.target.value }))} className={`mt-1 block w-full px-3 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-100 ${pkgErrors.packageId ? "border-red-500 ring-red-50" : "border-gray-200"}`} placeholder="PKG_1001" />
+                        {pkgErrors.packageId && <p className="text-red-500 text-xs mt-1">{pkgErrors.packageId}</p>}
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-gray-700">Package name</label>
@@ -738,7 +779,7 @@ const LabOnboarding: React.FC = () => {
                       </div>
 
                       <div className="flex items-center justify-end gap-3">
-                        <button type="button" onClick={() => setPkgForm({ name: "", includedTests: "", totalParams: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
+                        <button type="button" onClick={() => setPkgForm({ packageId: "", name: "", includedTests: "", totalParams: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
 
                         <button type="submit" disabled={isPostingPackage} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white shadow hover:brightness-95 transition disabled:opacity-60">
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M5 12h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -755,6 +796,12 @@ const LabOnboarding: React.FC = () => {
                     {testSuccess && (<div className="mb-3 p-2 text-sm bg-green-50 border border-green-100 text-green-800 rounded">{testSuccess}</div>)}
 
                     <form onSubmit={handleAddTest} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Test ID</label>
+                        <input value={testForm.testId} onChange={(e) => setTestForm((p) => ({ ...p, testId: e.target.value }))} className={`mt-1 block w-full px-3 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-100 ${testErrors.testId ? "border-red-500 ring-red-50" : "border-gray-200"}`} placeholder="TEST_1001" />
+                        {testErrors.testId && <p className="text-red-500 text-xs mt-1">{testErrors.testId}</p>}
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-gray-700">Test name</label>
@@ -828,7 +875,7 @@ const LabOnboarding: React.FC = () => {
                       </div>
 
                       <div className="flex items-center justify-end gap-3">
-                        <button type="button" onClick={() => setTestForm({ name: "", includedTests: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
+                        <button type="button" onClick={() => setTestForm({ testId: "", name: "", includedTests: "", code: "", parameters: "", mrp: "", discounted: "", preparation: "", reportTime: "", description: "" })} className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50">Reset</button>
 
                         <button type="submit" disabled={isPostingTest} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white shadow hover:brightness-95 transition disabled:opacity-60">
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M5 12h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
