@@ -4,21 +4,14 @@ import * as service from "../services/partnersService";
 
 export type { PartnerRequest, OnboardForm } from "../services/partnersService";
 
-/**
- * usePartnerRequests
- * - Encapsulates state and actions for PartnerRequests page.
- * - Keeps UI/component files thin.
- */
 export function usePartnerRequests() {
-  // core data
+  // ---------------- Existing Partner Request Flow ----------------
   const [items, setItems] = useState<service.PartnerRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // action state
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  // UI / filtering / paging
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 8;
@@ -26,7 +19,6 @@ export function usePartnerRequests() {
     "ALL" | "PENDING" | "ACCEPTED" | "REJECTED"
   >("ALL");
 
-  // modal & confirm state
   const [selected, setSelected] = useState<service.PartnerRequest | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -36,11 +28,9 @@ export function usePartnerRequests() {
     { id: string; type: "approve" | "reject"; name?: string } | null
   >(null);
 
-  // onboard modal state
   const [onboardOpen, setOnboardOpen] = useState(false);
   const [onboardSubmitting, setOnboardSubmitting] = useState(false);
 
-  // Fetch requests from service
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -60,14 +50,12 @@ export function usePartnerRequests() {
     fetchRequests();
   }, [fetchRequests]);
 
-  // derived: filtered + paginated
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = items;
-    if (selectedStatus !== "ALL") {
-      list = list.filter((it) => it.status === selectedStatus);
-    }
+    if (selectedStatus !== "ALL") list = list.filter((it) => it.status === selectedStatus);
     if (!q) return list;
+
     return list.filter((it) => {
       const name = `${it.firstName ?? ""} ${it.lastName ?? ""}`.toLowerCase();
       return (
@@ -82,7 +70,6 @@ export function usePartnerRequests() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  // counts
   const counts = useMemo(
     () => ({
       total: items.length,
@@ -93,7 +80,6 @@ export function usePartnerRequests() {
     [items]
   );
 
-  // UI helpers
   const openDetails = useCallback((r: service.PartnerRequest) => {
     setSelected(r);
     setShowModal(true);
@@ -104,19 +90,14 @@ export function usePartnerRequests() {
     setConfirmOpen(true);
   }, []);
 
-  // perform approve/reject via service, update UI state optimistically on success
   const performAction = useCallback(
     async (id: string, type: "approve" | "reject") => {
       setConfirmLoading(true);
       setActionLoadingId(id);
       try {
-        const res = type === "approve"
-          ? await service.approvePartnerRequest(id)
-          : await service.rejectPartnerRequest(id);
+        const res = type === "approve" ? await service.approvePartnerRequest(id) : await service.rejectPartnerRequest(id);
 
-        if (!res || res.success === false) {
-          throw new Error(res?.message || `${type} failed`);
-        }
+        if (!res || res.success === false) throw new Error(res?.message || `${type} failed`);
 
         setItems((prev) =>
           prev.map((it) =>
@@ -138,14 +119,11 @@ export function usePartnerRequests() {
     []
   );
 
-  // onboard (create partner request)
   const onboardSubmit = useCallback(async (data: service.OnboardForm) => {
     setOnboardSubmitting(true);
     try {
       const json = await service.createPartnerOnboard(data);
-      if (!json || json.success === false) {
-        throw new Error(json?.message || "Onboarding failed");
-      }
+      if (!json || json.success === false) throw new Error(json?.message || "Onboarding failed");
 
       const newReq: service.PartnerRequest = {
         id: json.request?.id || json.request?._id || Math.random().toString(36).slice(2, 9),
@@ -159,13 +137,11 @@ export function usePartnerRequests() {
         mobile: data.mobile,
         pincode: data.pincode,
         address: data.address,
-        isAdmin: data.isAdmin ?? false, // 👈 ADD THIS
+        isAdmin: data.isAdmin ?? false,
       };
 
-      // optimistic append
       setItems((prev) => [newReq, ...prev]);
       setOnboardOpen(false);
-
       return json;
     } catch (err) {
       console.error("onboardSubmit failed", err);
@@ -175,8 +151,217 @@ export function usePartnerRequests() {
     }
   }, []);
 
+  // ---------------- New SuperAdmin Partner Management Flow ----------------
+  const [partners, setPartners] = useState<service.SuperAdminPartner[]>([]);
+  const [partnersLoading, setPartnersLoading] = useState(false);
+  const [partnersError, setPartnersError] = useState<string | null>(null);
+  const [partnersQuery, setPartnersQuery] = useState("");
+  const [partnersPage, setPartnersPage] = useState(1);
+  const [partnersLimit] = useState(10);
+  const [partnersPagination, setPartnersPagination] = useState<service.PaginationMeta>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [managerLoading, setManagerLoading] = useState(false);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+  const [partnerDetails, setPartnerDetails] = useState<service.PartnerDetailsResp | null>(null);
+  const [partnerBank, setPartnerBank] = useState<service.PartnerBank | null>(null);
+  const [partnerCycles, setPartnerCycles] = useState<service.PartnerCycle[]>([]);
+  const [partnerCyclesPage, setPartnerCyclesPage] = useState(1);
+  const [partnerCyclesLimit] = useState(10);
+  const [partnerCyclesPagination, setPartnerCyclesPagination] = useState<service.PaginationMeta>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+
+  const [bankActionLoading, setBankActionLoading] = useState(false);
+  const [payoutActionLoadingKey, setPayoutActionLoadingKey] = useState<string | null>(null);
+
+  const fetchPartners = useCallback(
+    async (args?: { page?: number; search?: string }) => {
+      const nextPage = args?.page ?? 1;
+      const nextSearch = args?.search ?? "";
+
+      setPartnersLoading(true);
+      setPartnersError(null);
+      try {
+        const res = await service.fetchSuperAdminPartners({
+          page: nextPage,
+          limit: partnersLimit,
+          search: nextSearch,
+        });
+
+        if (!res?.success) throw new Error("Failed to fetch partners");
+
+        setPartners(res.partners || []);
+        setPartnersPagination(
+          res.pagination || {
+            page: nextPage,
+            limit: partnersLimit,
+            total: 0,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          }
+        );
+      } catch (err: any) {
+        console.error("fetchPartners failed", err);
+        setPartnersError(err?.message || "Failed to fetch partners");
+      } finally {
+        setPartnersLoading(false);
+      }
+    },
+    [partnersLimit]
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPartners({ page: partnersPage, search: partnersQuery });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [partnersPage, partnersQuery, fetchPartners]);
+
+  const fetchPartnerCycles = useCallback(
+    async (partnerId: string, page = 1) => {
+      const cycleRes = await service.fetchSuperAdminPartnerCycles(partnerId, {
+        page,
+        limit: partnerCyclesLimit,
+      });
+
+      if (!cycleRes?.success) throw new Error("Failed to fetch partner cycles");
+
+      setPartnerCycles(cycleRes.cycles || []);
+      setPartnerCyclesPage(page);
+      setPartnerCyclesPagination(
+        cycleRes.pagination || {
+          page,
+          limit: partnerCyclesLimit,
+          total: 0,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        }
+      );
+    },
+    [partnerCyclesLimit]
+  );
+
+  const openPartnerManager = useCallback(
+    async (partnerId: string) => {
+      setManagerOpen(true);
+      setManagerLoading(true);
+      setSelectedPartnerId(partnerId);
+
+      try {
+        const [detailRes, bankRes] = await Promise.all([
+          service.fetchSuperAdminPartnerDetails(partnerId),
+          service.fetchSuperAdminPartnerBank(partnerId),
+        ]);
+
+        if (!detailRes?.success) throw new Error("Failed to load partner details");
+
+        setPartnerDetails(detailRes);
+        setPartnerBank(bankRes?.bank || null);
+
+        await fetchPartnerCycles(partnerId, 1);
+      } catch (err) {
+        console.error("openPartnerManager failed", err);
+        throw err;
+      } finally {
+        setManagerLoading(false);
+      }
+    },
+    [fetchPartnerCycles]
+  );
+
+  const closePartnerManager = useCallback(() => {
+    setManagerOpen(false);
+    setSelectedPartnerId(null);
+    setPartnerDetails(null);
+    setPartnerBank(null);
+    setPartnerCycles([]);
+    setPartnerCyclesPage(1);
+  }, []);
+
+  const refreshSelectedPartner = useCallback(async () => {
+    if (!selectedPartnerId) return;
+
+    const [detailRes, bankRes] = await Promise.all([
+      service.fetchSuperAdminPartnerDetails(selectedPartnerId),
+      service.fetchSuperAdminPartnerBank(selectedPartnerId),
+    ]);
+
+    setPartnerDetails(detailRes || null);
+    setPartnerBank(bankRes?.bank || null);
+    await fetchPartnerCycles(selectedPartnerId, partnerCyclesPage);
+  }, [selectedPartnerId, fetchPartnerCycles, partnerCyclesPage]);
+
+  const verifyPartnerBank = useCallback(
+    async (payload: { status: "VERIFIED" | "REJECTED"; rejectionReason?: string }) => {
+      if (!selectedPartnerId) throw new Error("Partner not selected");
+
+      setBankActionLoading(true);
+      try {
+        const res = await service.verifySuperAdminPartnerBank(selectedPartnerId, payload);
+        if (!res || res.success === false) throw new Error(res?.message || "Bank verification failed");
+
+        await refreshSelectedPartner();
+        await fetchPartners({ page: partnersPage, search: partnersQuery });
+        return res;
+      } finally {
+        setBankActionLoading(false);
+      }
+    },
+    [selectedPartnerId, refreshSelectedPartner, fetchPartners, partnersPage, partnersQuery]
+  );
+
+  const markCyclePayout = useCallback(
+    async (cycle: service.PartnerCycle, status: "PAID" | "CANCELLED") => {
+      if (!selectedPartnerId) throw new Error("Partner not selected");
+
+      const key = `${cycle.start}_${cycle.end}_${status}`;
+      setPayoutActionLoadingKey(key);
+      try {
+        const res = await service.markSuperAdminPartnerCyclePayout(selectedPartnerId, {
+          start: cycle.start,
+          end: cycle.end,
+          status,
+        });
+
+        if (!res || res.success === false) throw new Error(res?.message || "Failed to mark payout");
+
+        await fetchPartnerCycles(selectedPartnerId, partnerCyclesPage);
+        await refreshSelectedPartner();
+        return res;
+      } finally {
+        setPayoutActionLoadingKey(null);
+      }
+    },
+    [selectedPartnerId, fetchPartnerCycles, partnerCyclesPage, refreshSelectedPartner]
+  );
+
+  const partnerCounts = useMemo(
+    () => ({
+      total: partnersPagination.total,
+      verified: partners.filter((p) => p.isVerified).length,
+      pendingBank: partners.filter((p) => (p.bankAccount?.status || "PENDING") === "PENDING").length,
+      verifiedBank: partners.filter((p) => p.bankAccount?.status === "VERIFIED").length,
+    }),
+    [partners, partnersPagination.total]
+  );
+
   return {
-    // data
+    // existing request flow
     items,
     pageItems,
     filtered,
@@ -187,20 +372,14 @@ export function usePartnerRequests() {
     setPage,
     totalPages,
     pageSize,
-
-    // ui
     query,
     setQuery,
     selectedStatus,
     setSelectedStatus,
-
-    // modals
     selected,
     showModal,
     setShowModal,
     openDetails,
-
-    // confirm modal
     confirmOpen,
     setConfirmOpen,
     confirmLoading,
@@ -208,15 +387,41 @@ export function usePartnerRequests() {
     askConfirm,
     performAction,
     actionLoadingId,
-
-    // onboard
     onboardOpen,
     setOnboardOpen,
     onboardSubmitting,
     onboardSubmit,
-
-    // helpers
     fetchRequests,
+
+    // superadmin partner flow
+    partners,
+    partnersLoading,
+    partnersError,
+    partnersQuery,
+    setPartnersQuery,
+    partnersPage,
+    setPartnersPage,
+    partnersLimit,
+    partnersPagination,
+    partnerCounts,
+    fetchPartners,
+
+    managerOpen,
+    managerLoading,
+    openPartnerManager,
+    closePartnerManager,
+    selectedPartnerId,
+    partnerDetails,
+    partnerBank,
+    partnerCycles,
+    partnerCyclesPage,
+    partnerCyclesPagination,
+    fetchPartnerCycles,
+
+    bankActionLoading,
+    verifyPartnerBank,
+    payoutActionLoadingKey,
+    markCyclePayout,
   } as const;
 }
 

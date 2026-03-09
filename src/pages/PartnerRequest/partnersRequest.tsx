@@ -1,6 +1,6 @@
 // src/pages/PartnersRequestPage.tsx
 import React from "react";
-import { FaArrowLeft, FaSearch, FaSyncAlt, FaUserCheck, FaUserTimes, FaEye, FaTimes, FaPlus, FaSpinner } from "react-icons/fa";
+import { FaArrowLeft, FaSearch, FaSyncAlt, FaUserCheck, FaUserTimes, FaEye, FaTimes, FaPlus, FaSpinner, FaMoneyBillWave, FaUniversity } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import { useForm } from "react-hook-form";
@@ -40,6 +40,10 @@ function fmtDateIST(iso?: string) {
   } catch {
     return iso;
   }
+}
+
+function fmtMoney(n?: number) {
+  return Number(n || 0).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
 }
 
 function initials(name = "") {
@@ -121,6 +125,7 @@ const PartnersRequestPage: React.FC = () => {
                     hook.setQuery("");
                     hook.setPage(1);
                     hook.fetchRequests();
+                    hook.fetchPartners({ page: hook.partnersPage, search: hook.partnersQuery });
                   }}
                   className="rounded-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 text-xs sm:text-sm font-semibold flex items-center gap-2 transition"
                 >
@@ -318,6 +323,55 @@ const PartnersRequestPage: React.FC = () => {
             </>
           )}
         </SectionCard>
+        <div className="h-6" />
+
+        <SectionCard title={<span className="flex items-center gap-2">Partners Management</span>} right={<div className="text-xs text-gray-500">Actions: Bank Verify / Payout</div>}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+            <div className="relative w-full sm:w-80">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input className="w-full pl-10 pr-10 py-2 rounded-full border bg-white/90 text-sm" placeholder="Search partners" value={hook.partnersQuery} onChange={(e) => { hook.setPartnersQuery(e.target.value); hook.setPartnersPage(1); }} />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
+              <div className="rounded-lg bg-gray-50 border px-3 py-2 text-xs">Total: <span className="font-semibold">{hook.partnerCounts.total}</span></div>
+              <div className="rounded-lg bg-gray-50 border px-3 py-2 text-xs">Verified: <span className="font-semibold">{hook.partnerCounts.verified}</span></div>
+              <div className="rounded-lg bg-gray-50 border px-3 py-2 text-xs">Bank Pending: <span className="font-semibold">{hook.partnerCounts.pendingBank}</span></div>
+              <div className="rounded-lg bg-gray-50 border px-3 py-2 text-xs">Bank Verified: <span className="font-semibold">{hook.partnerCounts.verifiedBank}</span></div>
+            </div>
+          </div>
+
+          {hook.partnersLoading ? (
+            <div className="py-10 text-center text-gray-500">Loading partners...</div>
+          ) : hook.partners.length === 0 ? (
+            <div className="py-10 text-center text-gray-500">No partners found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-red-50 to-red-100 text-red-700">
+                    <th className="px-4 py-2 text-left font-semibold">Partner</th>
+                    <th className="px-4 py-2 text-left font-semibold">Shop / Referral</th>
+                    <th className="px-4 py-2 text-left font-semibold">Bank</th>
+                    <th className="px-4 py-2 text-right font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hook.partners.map((p) => (
+                    <tr key={p.id} className="odd:bg-white even:bg-gray-50 hover:bg-red-50 transition">
+                      <td className="px-4 py-3"><div className="font-medium">{p.firstName} {p.lastName ?? ""}</div><div className="text-xs text-gray-500">{p.email ?? "-"} • {p.mobile ?? "-"}</div></td>
+                      <td className="px-4 py-3"><div>{p.shopName ?? "-"}</div><div className="text-xs text-gray-500">{p.referralCode || "No Referral"}</div></td>
+                      <td className="px-4 py-3">{p.bankAccount?.status === "VERIFIED" ? pill("Verified", "bg-green-50 text-green-700 border-green-200") : p.bankAccount?.status === "REJECTED" ? pill("Rejected", "bg-gray-50 text-gray-700 border-gray-200") : pill("Pending", "bg-amber-50 text-amber-700 border-amber-200")}</td>
+                      <td className="px-4 py-3 text-right"><button className="rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold hover:bg-red-700" onClick={async () => { try { await hook.openPartnerManager(p.id); } catch (err: any) { toast.error(err?.message || "Failed to load partner details"); } }}>Manage</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button onClick={() => { if (hook.partnersPagination.hasPrevPage) hook.setPartnersPage(hook.partnersPage - 1); }} className="rounded-full border px-3 py-1 text-sm" disabled={!hook.partnersPagination.hasPrevPage}>Prev</button>
+                <button onClick={() => { if (hook.partnersPagination.hasNextPage) hook.setPartnersPage(hook.partnersPage + 1); }} className="rounded-full border px-3 py-1 text-sm" disabled={!hook.partnersPagination.hasNextPage}>Next</button>
+              </div>
+            </div>
+          )}
+        </SectionCard>
       </div>
 
       {/* Details modal (header fixed, body scrollable, constrained to 85vh) */}
@@ -378,8 +432,63 @@ const PartnersRequestPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      )}
 
+      {/* Partner manager modal */}
+      {hook.managerOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full" style={{ maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div className="flex-none bg-gradient-to-r from-red-600 via-red-500 to-red-400 text-white py-3 px-4 sm:px-6 relative">
+              <button onClick={hook.closePartnerManager} className="absolute top-3 right-3 p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-white">x</button>
+              <h3 className="text-lg sm:text-xl font-bold">Partner management</h3>
+            </div>
+            <div className="flex-1 overflow-auto p-4 sm:p-6">
+              {hook.managerLoading || !hook.partnerDetails ? (
+                <div className="py-12 text-center text-gray-500">Loading partner details...</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="rounded-xl border bg-white p-4">
+                      <h4 className="font-bold text-red-700 mb-2">Partner profile</h4>
+                      <div className="text-sm"><span className="text-gray-500">Name:</span> {hook.partnerDetails.partner.firstName} {hook.partnerDetails.partner.lastName ?? ""}</div>
+                      <div className="text-sm"><span className="text-gray-500">Email:</span> {hook.partnerDetails.partner.email ?? "-"}</div>
+                      <div className="text-sm"><span className="text-gray-500">Mobile:</span> {hook.partnerDetails.partner.mobile ?? "-"}</div>
+                      <div className="text-sm"><span className="text-gray-500">Referral:</span> {hook.partnerDetails.partner.referralCode ?? "-"}</div>
+                      <div className="text-sm mt-2"><span className="text-gray-500">Total Paid Commission:</span> {fmtMoney(hook.partnerDetails.stats?.totalPaidCommission)}</div>
+                    </div>
+                    <div className="rounded-xl border bg-white p-4">
+                      <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2"><FaUniversity /> Bank verification</h4>
+                      <div className="text-sm"><span className="text-gray-500">Holder:</span> {hook.partnerBank?.holderName ?? "-"}</div>
+                      <div className="text-sm"><span className="text-gray-500">Bank:</span> {hook.partnerBank?.bankName ?? "-"}</div>
+                      <div className="text-sm"><span className="text-gray-500">A/C:</span> {hook.partnerBank?.accountNo ?? "-"}</div>
+                      <div className="text-sm mt-2"><span className="text-gray-500">Status:</span> {hook.partnerBank?.status || "PENDING"}</div>
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        <button disabled={hook.bankActionLoading} onClick={async () => { try { await hook.verifyPartnerBank({ status: "VERIFIED" }); toast.success("Bank marked as VERIFIED"); } catch (err: any) { toast.error(err?.message || "Failed to verify bank"); } }} className="rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold hover:bg-green-700 disabled:opacity-60">{hook.bankActionLoading ? "..." : "Mark VERIFIED"}</button>
+                        <button disabled={hook.bankActionLoading} onClick={async () => { const reason = window.prompt("Enter rejection reason"); if (!reason) return; try { await hook.verifyPartnerBank({ status: "REJECTED", rejectionReason: reason }); toast.success("Bank marked as REJECTED"); } catch (err: any) { toast.error(err?.message || "Failed to reject bank"); } }} className="rounded-full bg-white border px-3 py-1 text-xs font-semibold hover:bg-red-50 disabled:opacity-60">{hook.bankActionLoading ? "..." : "Mark REJECTED"}</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-5 rounded-xl border bg-white p-4">
+                    <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2"><FaMoneyBillWave /> Cycles & payout</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead><tr className="bg-gray-50"><th className="px-3 py-2 text-left">Cycle</th><th className="px-3 py-2 text-left">Patients</th><th className="px-3 py-2 text-left">Commission</th><th className="px-3 py-2 text-left">Payout</th><th className="px-3 py-2 text-right">Actions</th></tr></thead>
+                        <tbody>
+                          {hook.partnerCycles.map((c) => {
+                            const keyPaid = `${c.start}_${c.end}_PAID`;
+                            const keyCancel = `${c.start}_${c.end}_CANCELLED`;
+                            return <tr key={`${c.start}_${c.end}`} className="border-t"><td className="px-3 py-2"><div>{fmtDateIST(c.start)}</div><div className="text-xs text-gray-500">to {fmtDateIST(c.end)}</div></td><td className="px-3 py-2">{c.patients}</td><td className="px-3 py-2">{fmtMoney(c.commission)}</td><td className="px-3 py-2">{c.payout?.status || "PENDING"}</td><td className="px-3 py-2 text-right"><div className="inline-flex gap-2"><button disabled={!c.payable || hook.payoutActionLoadingKey === keyPaid} onClick={async () => { try { await hook.markCyclePayout(c, "PAID"); toast.success("Cycle marked as PAID"); } catch (err: any) { toast.error(err?.message || "Failed to mark paid"); } }} className="rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold hover:bg-green-700 disabled:opacity-60">{hook.payoutActionLoadingKey === keyPaid ? "..." : "Mark PAID"}</button><button disabled={hook.payoutActionLoadingKey === keyCancel} onClick={async () => { try { await hook.markCyclePayout(c, "CANCELLED"); toast.success("Cycle marked as CANCELLED"); } catch (err: any) { toast.error(err?.message || "Failed to mark cancelled"); } }} className="rounded-full bg-white border px-3 py-1 text-xs font-semibold hover:bg-red-50 disabled:opacity-60">{hook.payoutActionLoadingKey === keyCancel ? "..." : "Mark CANCELLED"}</button></div></td></tr>;
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Onboarding modal (header fixed, body scrollable, constrained to 85vh) */}
       {hook.onboardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -525,3 +634,8 @@ const PartnersRequestPage: React.FC = () => {
 };
 
 export default PartnersRequestPage;
+
+
+
+
+
