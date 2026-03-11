@@ -186,6 +186,7 @@ export function usePartnerRequests() {
 
   const [bankActionLoading, setBankActionLoading] = useState(false);
   const [payoutActionLoadingKey, setPayoutActionLoadingKey] = useState<string | null>(null);
+  const [partnerStatusLoadingId, setPartnerStatusLoadingId] = useState<string | null>(null);
 
   const fetchPartners = useCallback(
     async (args?: { page?: number; search?: string }) => {
@@ -350,6 +351,41 @@ export function usePartnerRequests() {
     [selectedPartnerId, fetchPartnerCycles, partnerCyclesPage, refreshSelectedPartner]
   );
 
+  const togglePartnerStatus = useCallback(
+    async (partnerId: string, isActive: boolean) => {
+      setPartnerStatusLoadingId(partnerId);
+      try {
+        const res = await service.toggleSuperAdminPartnerStatus(partnerId, { isActive });
+        if (!res || res.success === false) {
+          throw new Error(res?.message || "Failed to update partner status");
+        }
+
+        setPartners((prev) =>
+          prev.map((p) => (p.id === partnerId ? { ...p, isActive } : p))
+        );
+
+        if (selectedPartnerId === partnerId) {
+          setPartnerDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  partner: {
+                    ...prev.partner,
+                    isActive,
+                  },
+                }
+              : prev
+          );
+        }
+
+        return res;
+      } finally {
+        setPartnerStatusLoadingId(null);
+      }
+    },
+    [selectedPartnerId]
+  );
+
   const partnerCounts = useMemo(
     () => ({
       total: partnersPagination.total,
@@ -422,6 +458,8 @@ export function usePartnerRequests() {
     verifyPartnerBank,
     payoutActionLoadingKey,
     markCyclePayout,
+    partnerStatusLoadingId,
+    togglePartnerStatus,
   } as const;
 }
 

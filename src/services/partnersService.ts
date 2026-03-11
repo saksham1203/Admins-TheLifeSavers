@@ -61,6 +61,7 @@ export type SuperAdminPartner = {
   pincode?: string;
   address?: string;
   isVerified?: boolean;
+  isActive?: boolean;
   referralCode?: string | null;
   createdAt?: string;
   cycleAnchor?: string;
@@ -84,6 +85,7 @@ export type SuperAdminPartnerDetails = {
   address?: string;
   shopName?: string;
   isVerified?: boolean;
+  isActive?: boolean;
   referralCode?: string | null;
   createdAt?: string;
   cycleAnchor?: string;
@@ -275,6 +277,16 @@ export async function verifySuperAdminPartnerBank(
   });
 }
 
+export async function toggleSuperAdminPartnerStatus(
+  partnerId: string,
+  payload: { isActive: boolean }
+): Promise<any> {
+  return apiFetch<any>(`${BASE}/superadmins/partners/${encodeURIComponent(partnerId)}/toggle`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export const partnersService = {
   fetchPartnerRequests,
   approvePartnerRequest,
@@ -286,6 +298,7 @@ export const partnersService = {
   markSuperAdminPartnerCyclePayout,
   fetchSuperAdminPartnerBank,
   verifySuperAdminPartnerBank,
+  toggleSuperAdminPartnerStatus,
   readTokenFromLocalStorage,
   BASE,
 };

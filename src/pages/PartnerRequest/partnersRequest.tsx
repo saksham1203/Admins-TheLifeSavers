@@ -1,4 +1,4 @@
-// src/pages/PartnersRequestPage.tsx
+﻿// src/pages/PartnersRequestPage.tsx
 import React from "react";
 import { FaArrowLeft, FaSearch, FaSyncAlt, FaUserCheck, FaUserTimes, FaEye, FaTimes, FaPlus, FaSpinner, FaMoneyBillWave, FaUniversity } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -33,7 +33,7 @@ const SectionCard: React.FC<{
 );
 
 function fmtDateIST(iso?: string) {
-  if (!iso) return "—";
+  if (!iso) return "â€”";
   try {
     const d = new Date(iso);
     return d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
@@ -75,7 +75,7 @@ const PartnersRequestPage: React.FC = () => {
       shopName: "",
       pincode: "",
       address: "",
-      isAdmin: false, // 👈 ADD THIS
+      isAdmin: false, // ðŸ‘ˆ ADD THIS
     },
   });
 
@@ -203,7 +203,7 @@ const PartnersRequestPage: React.FC = () => {
         {/* Main content */}
         <SectionCard title={<span className="flex items-center gap-2">Requests</span>} right={<div className="text-xs text-gray-500">Actions: Approve / Reject</div>}>
           {hook.loading ? (
-            <div className="py-12 text-center text-gray-500">Loading requests…</div>
+            <div className="py-12 text-center text-gray-500">Loading requestsâ€¦</div>
           ) : hook.items.length === 0 ? (
             <div className="py-12 text-center text-gray-500">
               No requests available.
@@ -239,11 +239,11 @@ const PartnersRequestPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm">{r.shopName ?? "—"}</div>
-                          <div className="text-xs text-gray-500">{r.partnerType ?? "—"}</div>
+                          <div className="text-sm">{r.shopName ?? "â€”"}</div>
+                          <div className="text-xs text-gray-500">{r.partnerType ?? "â€”"}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm">{r.mobile ?? "—"}</div>
+                          <div className="text-sm">{r.mobile ?? "â€”"}</div>
                           <div className="text-xs text-gray-500">{r.pincode ?? ""}</div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-500">{fmtDateIST(r.createdAt)}</td>
@@ -286,12 +286,12 @@ const PartnersRequestPage: React.FC = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="font-medium text-sm truncate">{r.firstName} {r.lastName ?? ""}</div>
-                            <div className="text-xs text-gray-500 truncate">{r.shopName ?? "—"}</div>
+                            <div className="text-xs text-gray-500 truncate">{r.shopName ?? "â€”"}</div>
                           </div>
                           <div className="text-xs text-gray-500">{fmtDateIST(r.createdAt)}</div>
                         </div>
 
-                        <div className="mt-2 text-sm text-gray-600 truncate">{r.email ?? "—"} • {r.mobile ?? "—"}</div>
+                        <div className="mt-2 text-sm text-gray-600 truncate">{r.email ?? "â€”"} â€¢ {r.mobile ?? "â€”"}</div>
 
                         <div className="mt-3 flex items-center justify-between gap-2">
                           <div>{r.status === "PENDING" ? pill("Pending", "bg-amber-50 text-amber-700 border-amber-200") : r.status === "ACCEPTED" ? pill("Accepted", "bg-green-50 text-green-700 border-green-200") : pill("Rejected", "bg-gray-50 text-gray-700 border-gray-200")}</div>
@@ -325,7 +325,7 @@ const PartnersRequestPage: React.FC = () => {
         </SectionCard>
         <div className="h-6" />
 
-        <SectionCard title={<span className="flex items-center gap-2">Partners Management</span>} right={<div className="text-xs text-gray-500">Actions: Bank Verify / Payout</div>}>
+        <SectionCard title={<span className="flex items-center gap-2">Partners Management</span>} right={<div className="text-xs text-gray-500">Actions: Activate / Deactivate, Bank Verify, Payout</div>}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
             <div className="relative w-full sm:w-80">
               <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -351,16 +351,36 @@ const PartnersRequestPage: React.FC = () => {
                     <th className="px-4 py-2 text-left font-semibold">Partner</th>
                     <th className="px-4 py-2 text-left font-semibold">Shop / Referral</th>
                     <th className="px-4 py-2 text-left font-semibold">Bank</th>
+                    <th className="px-4 py-2 text-left font-semibold">Account</th>
                     <th className="px-4 py-2 text-right font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {hook.partners.map((p) => (
                     <tr key={p.id} className="odd:bg-white even:bg-gray-50 hover:bg-red-50 transition">
-                      <td className="px-4 py-3"><div className="font-medium">{p.firstName} {p.lastName ?? ""}</div><div className="text-xs text-gray-500">{p.email ?? "-"} � {p.mobile ?? "-"}</div></td>
+                      <td className="px-4 py-3"><div className="font-medium">{p.firstName} {p.lastName ?? ""}</div><div className="text-xs text-gray-500">{p.email ?? "-"} • {p.mobile ?? "-"}</div></td>
                       <td className="px-4 py-3"><div>{p.shopName ?? "-"}</div><div className="text-xs text-gray-500">{p.referralCode || "No Referral"}</div></td>
                       <td className="px-4 py-3">{p.bankAccount?.status === "VERIFIED" ? pill("Verified", "bg-green-50 text-green-700 border-green-200") : p.bankAccount?.status === "REJECTED" ? pill("Rejected", "bg-gray-50 text-gray-700 border-gray-200") : pill("Pending", "bg-amber-50 text-amber-700 border-amber-200")}</td>
-                      <td className="px-4 py-3 text-right"><button className="rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold hover:bg-red-700" onClick={async () => { try { await hook.openPartnerManager(p.id); } catch (err: any) { toast.error(err?.message || "Failed to load partner details"); } }}>Manage</button></td>
+                      <td className="px-4 py-3">{p.isActive ? pill("Active", "bg-green-50 text-green-700 border-green-200") : pill("Inactive", "bg-gray-50 text-gray-700 border-gray-200")}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <button className="rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold hover:bg-red-700" onClick={async () => { try { await hook.openPartnerManager(p.id); } catch (err: any) { toast.error(err?.message || "Failed to load partner details"); } }}>Manage</button>
+                          <button
+                            className="rounded-full border px-3 py-1 text-xs font-semibold hover:bg-red-50 disabled:opacity-60"
+                            disabled={hook.partnerStatusLoadingId === p.id}
+                            onClick={async () => {
+                              try {
+                                await hook.togglePartnerStatus(p.id, !p.isActive);
+                                toast.success(`Partner ${!p.isActive ? "activated" : "deactivated"} successfully`);
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to update partner status");
+                              }
+                            }}
+                          >
+                            {hook.partnerStatusLoadingId === p.id ? "..." : p.isActive ? "Deactivate" : "Activate"}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -383,7 +403,7 @@ const PartnersRequestPage: React.FC = () => {
           >
             {/* Header (fixed) */}
             <div className="flex-none bg-gradient-to-r from-red-600 via-red-500 to-red-400 text-white py-3 px-4 sm:px-6 relative">
-              <button onClick={() => hook.setShowModal(false)} className="absolute top-3 right-3 p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-white">✕</button>
+              <button onClick={() => hook.setShowModal(false)} className="absolute top-3 right-3 p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-white">âœ•</button>
               <h3 className="text-lg sm:text-xl font-bold">Request details</h3>
             </div>
 
@@ -394,19 +414,19 @@ const PartnersRequestPage: React.FC = () => {
                   <div className="text-sm text-gray-500">Name</div>
                   <div className="font-medium">{hook.selected.firstName} {hook.selected.lastName}</div>
                   <div className="text-sm text-gray-500 mt-2">Shop</div>
-                  <div>{hook.selected.shopName ?? "—"}</div>
+                  <div>{hook.selected.shopName ?? "â€”"}</div>
                   <div className="text-sm text-gray-500 mt-2">Type</div>
-                  <div>{hook.selected.partnerType ?? "—"}</div>
+                  <div>{hook.selected.partnerType ?? "â€”"}</div>
                   <div className="text-sm text-gray-500 mt-2">Category</div>
-                  <div>{hook.selected.specifyCategory ?? "—"}</div>
+                  <div>{hook.selected.specifyCategory ?? "â€”"}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Contact</div>
-                  <div className="break-words">{hook.selected.email ?? "—"}</div>
+                  <div className="break-words">{hook.selected.email ?? "â€”"}</div>
                   <div className="text-sm text-gray-500 mt-2">Mobile</div>
-                  <div>{hook.selected.mobile ?? "—"}</div>
+                  <div>{hook.selected.mobile ?? "â€”"}</div>
                   <div className="text-sm text-gray-500 mt-2">Address</div>
-                  <div className="text-sm break-words">{hook.selected.address ?? "—"}</div>
+                  <div className="text-sm break-words">{hook.selected.address ?? "â€”"}</div>
                 </div>
               </div>
 
@@ -454,7 +474,29 @@ const PartnersRequestPage: React.FC = () => {
                       <div className="text-sm"><span className="text-gray-500">Email:</span> {hook.partnerDetails.partner.email ?? "-"}</div>
                       <div className="text-sm"><span className="text-gray-500">Mobile:</span> {hook.partnerDetails.partner.mobile ?? "-"}</div>
                       <div className="text-sm"><span className="text-gray-500">Referral:</span> {hook.partnerDetails.partner.referralCode ?? "-"}</div>
+                      <div className="text-sm"><span className="text-gray-500">Account:</span> {hook.partnerDetails.partner.isActive ? "Active" : "Inactive"}</div>
                       <div className="text-sm mt-2"><span className="text-gray-500">Total Paid Commission:</span> {fmtMoney(hook.partnerDetails.stats?.totalPaidCommission)}</div>
+                      <div className="mt-3">
+                        <button
+                          disabled={hook.partnerStatusLoadingId === hook.partnerDetails.partner.id}
+                          onClick={async () => {
+                            try {
+                              const nextStatus = !hook.partnerDetails?.partner?.isActive;
+                              await hook.togglePartnerStatus(hook.partnerDetails!.partner.id, nextStatus);
+                              toast.success(`Partner ${nextStatus ? "activated" : "deactivated"} successfully`);
+                            } catch (err: any) {
+                              toast.error(err?.message || "Failed to update partner status");
+                            }
+                          }}
+                          className="rounded-full bg-white border px-3 py-1 text-xs font-semibold hover:bg-red-50 disabled:opacity-60"
+                        >
+                          {hook.partnerStatusLoadingId === hook.partnerDetails.partner.id
+                            ? "..."
+                            : hook.partnerDetails.partner.isActive
+                              ? "Deactivate Partner"
+                              : "Activate Partner"}
+                        </button>
+                      </div>
                     </div>
                     <div className="rounded-xl border bg-white p-4">
                       <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2"><FaUniversity /> Bank verification</h4>
@@ -500,7 +542,7 @@ const PartnersRequestPage: React.FC = () => {
             {/* Header fixed */}
             <div className="flex-none bg-gradient-to-r from-red-600 via-red-500 to-red-400 text-white py-3 px-4 sm:px-6 relative">
               <h3 id="new-partner-title" className="text-lg sm:text-2xl font-bold">New Partner Registration</h3>
-              <button aria-label="Close" onClick={() => hook.setOnboardOpen(false)} className="absolute top-3 right-3 text-white p-2 rounded-full bg-red-500/20 hover:bg-red-500/30">✕</button>
+              <button aria-label="Close" onClick={() => hook.setOnboardOpen(false)} className="absolute top-3 right-3 text-white p-2 rounded-full bg-red-500/20 hover:bg-red-500/30">âœ•</button>
             </div>
 
             {/* Body scrollable */}
@@ -634,6 +676,7 @@ const PartnersRequestPage: React.FC = () => {
 };
 
 export default PartnersRequestPage;
+
 
 
 
