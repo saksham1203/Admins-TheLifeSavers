@@ -105,13 +105,23 @@ export type PartnerBank = {
 };
 
 export type PartnerCycle = {
+  cycleId?: string;
+  index?: number;
+  number?: number;
+  status?: string;
   start: string;
   end: string;
+  label?: string;
   isRunning?: boolean;
   patients: number;
   revenue?: number;
   bonus?: number;
+  bonusPercent?: number;
   commission: number;
+  isBonusApplied?: boolean;
+  baseCommission?: number;
+  bonusEarned?: number;
+  totalCommissionEarned?: number;
   payout?: {
     id: string;
     status: "PENDING" | "PAID" | "CANCELLED";
@@ -138,6 +148,12 @@ export type PartnerDetailsResp = {
     number: number;
     label: string;
   };
+  earnedSummary?: {
+    totalRevenue: number;
+    totalBonus: number;
+    totalCommission: number;
+    totalPatients: number;
+  };
 };
 
 export type PartnerListResp = {
@@ -155,13 +171,124 @@ export type PartnerCyclesResp = {
     shopName?: string;
     referralCode?: string;
   };
+  workingCycleId?: string | null;
+  workingCycleIndex?: number;
+  cyclesStored?: number;
+  summary?: {
+    totalPatients: number;
+    totalRevenue: number;
+    totalBonus: number;
+    totalCommission: number;
+  };
   cycles: PartnerCycle[];
   pagination: PaginationMeta;
+};
+
+export type PartnerCycleReferralsResp = {
+  success: boolean;
+  cycle?: {
+    cycleId: string;
+    index: number;
+    number: number;
+    status: string;
+    start: string;
+    end: string;
+    label: string;
+  };
+  referrals: Array<{
+    id: string;
+    orderId?: string;
+    patientName?: string;
+    status?: string;
+    total?: number;
+    partnerMargin?: number;
+    commissionGranted?: number;
+    commissionState?: "GRANTED" | "IN_PROGRESS";
+    createdAt?: string;
+  }>;
+  nextCursor?: string | null;
+};
+
+export type SuperAdminCompletedCycleRow = {
+  cycleId: string;
+  index?: number;
+  number?: number;
+  status?: string;
+  start: string;
+  end: string;
+  label?: string;
+  isRunning?: boolean;
+  patients: number;
+  revenue?: number;
+  bonus?: number;
+  bonusPercent?: number;
+  commission: number;
+  isBonusApplied?: boolean;
+  baseCommission?: number;
+  bonusEarned?: number;
+  totalCommissionEarned?: number;
+  payout?: {
+    id: string;
+    status: "PENDING" | "PAID" | "CANCELLED";
+    commission: number;
+    paidAt?: string | null;
+    note?: string | null;
+  } | null;
+  payable: boolean;
+  canMarkPayout?: boolean;
+  partner: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    mobile?: string;
+    shopName?: string;
+    referralCode?: string;
+    isActive?: boolean;
+    isVerified?: boolean;
+    bankStatus?: "PENDING" | "VERIFIED" | "REJECTED";
+    bankUpdatedAt?: string | null;
+  };
+};
+
+export type SuperAdminCompletedCyclesResp = {
+  success: boolean;
+  cycles: SuperAdminCompletedCycleRow[];
+  pagination: PaginationMeta;
+  asOf?: string;
 };
 
 export type PartnerBankResp = {
   success: boolean;
   bank: PartnerBank | null;
+};
+
+export type DeletedPartnerArchive = {
+  id: string;
+  originalPartnerId: string;
+  partnerEmail?: string | null;
+  partnerMobile?: string | null;
+  partnerReferralCode?: string | null;
+  deletedById?: string | null;
+  reason?: string | null;
+  snapshot: any;
+  deletedAt: string;
+  deletedBy?: {
+    id: string;
+    name?: string;
+    email?: string;
+  } | null;
+};
+
+export type DeletedPartnerArchiveListResp = {
+  success: boolean;
+  archives: DeletedPartnerArchive[];
+  pagination: PaginationMeta;
+};
+
+export type DeletedPartnerArchiveDetailsResp = {
+  success: boolean;
+  archive: DeletedPartnerArchive;
 };
 
 export type MarkPayoutPayload = {
@@ -172,7 +299,9 @@ export type MarkPayoutPayload = {
   note?: string;
 };
 
-const BASE = "https://services.thelifesavers.in/api";
+const BASE =
+  (typeof import.meta !== "undefined" && (import.meta as any)?.env?.VITE_API_URL) ||
+  "https://services.thelifesavers.in/api";
 
 function readTokenFromLocalStorage(): string | null {
   return localStorage.getItem("token") || localStorage.getItem("authToken") || null;
@@ -263,6 +392,40 @@ export async function markSuperAdminPartnerCyclePayout(
   });
 }
 
+export async function fetchSuperAdminPartnerCycleReferrals(
+  partnerId: string,
+  cycleId: string,
+  params?: { limit?: number; cursor?: string; status?: string }
+): Promise<PartnerCycleReferralsResp> {
+  const qp = new URLSearchParams();
+  qp.set("limit", String(params?.limit || 20));
+  if (params?.cursor) qp.set("cursor", params.cursor);
+  if (params?.status) qp.set("status", params.status);
+
+  return apiFetch<PartnerCycleReferralsResp>(
+    `${BASE}/superadmins/partners/${encodeURIComponent(partnerId)}/cycles/${encodeURIComponent(
+      cycleId
+    )}/referrals?${qp.toString()}`
+  );
+}
+
+export async function fetchSuperAdminCompletedCycles(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  payoutStatus?: "PAID" | "PENDING" | "CANCELLED" | "";
+  onlyActionable?: boolean;
+}): Promise<SuperAdminCompletedCyclesResp> {
+  const qp = new URLSearchParams();
+  qp.set("page", String(params?.page || 1));
+  qp.set("limit", String(params?.limit || 10));
+  if (params?.search?.trim()) qp.set("search", params.search.trim());
+  if (params?.payoutStatus) qp.set("payoutStatus", params.payoutStatus);
+  if (params?.onlyActionable) qp.set("onlyActionable", "true");
+
+  return apiFetch<SuperAdminCompletedCyclesResp>(`${BASE}/superadmins/partners/cycles/completed?${qp.toString()}`);
+}
+
 export async function fetchSuperAdminPartnerBank(partnerId: string): Promise<PartnerBankResp> {
   return apiFetch<PartnerBankResp>(`${BASE}/superadmins/partners/${encodeURIComponent(partnerId)}/bank`);
 }
@@ -287,6 +450,37 @@ export async function toggleSuperAdminPartnerStatus(
   });
 }
 
+export async function deleteSuperAdminPartner(
+  partnerId: string,
+  payload?: { reason?: string }
+): Promise<any> {
+  return apiFetch<any>(`${BASE}/superadmins/partners/${encodeURIComponent(partnerId)}`, {
+    method: "DELETE",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+export async function fetchSuperAdminDeletedPartners(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}): Promise<DeletedPartnerArchiveListResp> {
+  const qp = new URLSearchParams();
+  qp.set("page", String(params?.page || 1));
+  qp.set("limit", String(params?.limit || 10));
+  if (params?.search?.trim()) qp.set("search", params.search.trim());
+
+  return apiFetch<DeletedPartnerArchiveListResp>(`${BASE}/superadmins/partners/deleted?${qp.toString()}`);
+}
+
+export async function fetchSuperAdminDeletedPartnerArchiveDetails(
+  archiveId: string
+): Promise<DeletedPartnerArchiveDetailsResp> {
+  return apiFetch<DeletedPartnerArchiveDetailsResp>(
+    `${BASE}/superadmins/partners/deleted/${encodeURIComponent(archiveId)}`
+  );
+}
+
 export const partnersService = {
   fetchPartnerRequests,
   approvePartnerRequest,
@@ -295,10 +489,15 @@ export const partnersService = {
   fetchSuperAdminPartners,
   fetchSuperAdminPartnerDetails,
   fetchSuperAdminPartnerCycles,
+  fetchSuperAdminCompletedCycles,
+  fetchSuperAdminPartnerCycleReferrals,
   markSuperAdminPartnerCyclePayout,
   fetchSuperAdminPartnerBank,
   verifySuperAdminPartnerBank,
   toggleSuperAdminPartnerStatus,
+  deleteSuperAdminPartner,
+  fetchSuperAdminDeletedPartners,
+  fetchSuperAdminDeletedPartnerArchiveDetails,
   readTokenFromLocalStorage,
   BASE,
 };
