@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
-import { Preferences } from "@capacitor/preferences";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { FaPlus, FaSpinner, FaTicketAlt, FaTrash, FaToggleOn, FaToggleOff } from "react-icons/fa";
@@ -47,18 +46,20 @@ interface DeletedPromoItem {
 }
 
 const API_BASE = "https://services.thelifesavers.in/api";
+const BASE =
+  (typeof import.meta !== "undefined" && (import.meta as any)?.env?.VITE_API_URL) ||
+  API_BASE;
 
 const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "-");
 
 async function getAuthToken(): Promise<string | null> {
-  const { value } = await Preferences.get({ key: "token" });
-  return value ?? null;
+  return localStorage.getItem("token") || localStorage.getItem("authToken") || null;
 }
 
 async function axiosWithAuth() {
   const token = await getAuthToken();
   return axios.create({
-    baseURL: API_BASE,
+    baseURL: BASE,
     headers: {
       "Content-Type": "application/json",
       Authorization: token ? `Bearer ${token}` : "",
@@ -75,6 +76,7 @@ async function createPromo(payload: Partial<PromoFormInput>) {
 async function listPromos(): Promise<PromoItem[]> {
   const client = await axiosWithAuth();
   const res = await client.get("/promocodes");
+  if (res.data?.success === false) throw new Error(res.data?.message || "Failed to fetch promos");
   if (Array.isArray(res.data)) return res.data;
   if (Array.isArray(res.data?.promos)) return res.data.promos;
   return [];
@@ -83,6 +85,7 @@ async function listPromos(): Promise<PromoItem[]> {
 async function listDeletedPromos(): Promise<DeletedPromoItem[]> {
   const client = await axiosWithAuth();
   const res = await client.get("/promocodes/deleted");
+  if (res.data?.success === false) throw new Error(res.data?.message || "Failed to fetch deleted promos");
   if (Array.isArray(res.data)) return res.data;
   if (Array.isArray(res.data?.deletedPromos)) return res.data.deletedPromos;
   return [];
@@ -91,12 +94,14 @@ async function listDeletedPromos(): Promise<DeletedPromoItem[]> {
 async function togglePromo(id: string) {
   const client = await axiosWithAuth();
   const res = await client.patch(`/promocodes/${id}/toggle`);
+  if (res.data?.success === false) throw new Error(res.data?.message || "Failed to toggle promo");
   return res.data;
 }
 
 async function deletePromo(id: string) {
   const client = await axiosWithAuth();
   const res = await client.delete(`/promocodes/${id}`);
+  if (res.data?.success === false) throw new Error(res.data?.message || "Failed to delete promo");
   return res.data;
 }
 
