@@ -190,7 +190,10 @@ const PromoCodesOnboarding: React.FC = () => {
         description: formData.description?.trim() || undefined,
         discountType: formData.discountType,
         amount: Number(formData.amount),
-        maxDiscount: formData.maxDiscount !== "" ? Number(formData.maxDiscount) : undefined,
+        maxDiscount:
+          formData.discountType === "PERCENT" && formData.maxDiscount !== ""
+            ? Number(formData.maxDiscount)
+            : undefined,
         minOrderAmount: formData.minOrderAmount !== "" ? Number(formData.minOrderAmount) : undefined,
         startsAt: formData.startsAt || undefined,
         expiresAt: formData.expiresAt || undefined,
@@ -417,24 +420,40 @@ const PromoCodesOnboarding: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Amount</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {discountType === "PERCENT" ? "Discount Percentage" : "Flat Discount Amount"}
+                    </label>
                     <input
                       type="number"
                       step="0.01"
-                      {...register("amount", { required: "Amount is required", min: { value: 0.01, message: "Must be > 0" } })}
+                      max={discountType === "PERCENT" ? 100 : undefined}
+                      {...register("amount", {
+                        required: "Amount is required",
+                        min: { value: 0.01, message: "Must be > 0" },
+                        validate: (value) => {
+                          if (discountType === "PERCENT" && Number(value) > 100) {
+                            return "Percentage cannot exceed 100";
+                          }
+                          return true;
+                        },
+                      })}
                       className={`mt-1 block w-full px-3 py-2 border ${errors.amount ? "border-red-500" : "border-gray-300"} rounded-md`}
                     />
+                    {discountType === "PERCENT" && (
+                      <p className="text-xs text-gray-500 mt-1">Enter value between 1 and 100.</p>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Max Discount</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      disabled={discountType === "FLAT"}
-                      {...register("maxDiscount")}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100"
-                    />
-                  </div>
+                  {discountType === "PERCENT" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Max Discount</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        {...register("maxDiscount")}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
