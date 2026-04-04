@@ -305,7 +305,7 @@ export type MarkPayoutPayload = {
 
 const BASE =
   (typeof import.meta !== "undefined" && (import.meta as any)?.env?.VITE_API_URL) ||
-  "http://localhost:5000/api";
+  "https://services.thelifesavers.in/api";
 
 function readTokenFromLocalStorage(): string | null {
   return localStorage.getItem("token") || localStorage.getItem("authToken") || null;
