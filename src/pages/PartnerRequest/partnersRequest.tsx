@@ -774,14 +774,30 @@ const PartnersRequestPage: React.FC = () => {
                       <InfoRow label="Name" value={`${hook.partnerDetails.partner.firstName} ${hook.partnerDetails.partner.lastName ?? ""}`} />
                       <InfoRow label="Email" value={hook.partnerDetails.partner.email ?? "-"} />
                       <InfoRow label="Mobile" value={hook.partnerDetails.partner.mobile ?? "-"} />
+                      <InfoRow label="DOB" value={fmtDateIST(hook.partnerDetails.partner.dob)} />
+                      <InfoRow label="Gender" value={hook.partnerDetails.partner.gender ?? "-"} />
+                      <InfoRow label="Partner Type" value={hook.partnerDetails.partner.partnerType ?? "-"} />
+                      <InfoRow label="Category" value={hook.partnerDetails.partner.specifyCategory ?? "-"} />
+                      <InfoRow label="Shop Name" value={hook.partnerDetails.partner.shopName ?? "-"} />
+                      <InfoRow label="Pincode" value={hook.partnerDetails.partner.pincode ?? "-"} />
+                      <InfoRow label="Address" value={hook.partnerDetails.partner.address ?? "-"} />
                       <InfoRow label="Referral" value={hook.partnerDetails.partner.referralCode ?? "-"} />
+                      <InfoRow label="Verified" value={hook.partnerDetails.partner.isVerified ? "Yes" : "No"} />
                       <InfoRow label="Account" value={hook.partnerDetails.partner.isActive ? "Active" : "Inactive"} />
+                      <InfoRow label="Created At" value={fmtDateIST(hook.partnerDetails.partner.createdAt)} />
+                      <InfoRow label="Cycle Anchor" value={fmtDateIST(hook.partnerDetails.partner.cycleAnchor)} />
                       <InfoRow label="Completed Referrals" value={hook.partnerDetails.stats?.totalCompletedReferrals ?? 0} />
                       <InfoRow label="Paid Cycles" value={hook.partnerDetails.stats?.totalPaidCycles ?? 0} />
                       <InfoRow label="Paid Patients" value={hook.partnerDetails.stats?.totalPaidPatients ?? 0} />
                       <InfoRow label="Paid Commission" value={fmtMoney(hook.partnerDetails.stats?.totalPaidCommission)} />
+                      <InfoRow label="Total Revenue" value={fmtMoney(hook.partnerDetails.earnedSummary?.totalRevenue)} />
+                      <InfoRow label="Total Patients" value={hook.partnerDetails.earnedSummary?.totalPatients ?? 0} />
                       <InfoRow label="Bonus Earned" value={fmtMoney(hook.partnerDetails.earnedSummary?.totalBonus)} />
                       <InfoRow label="Commission Earned" value={fmtMoney(hook.partnerDetails.earnedSummary?.totalCommission)} />
+                      <InfoRow label="Current Cycle" value={hook.partnerDetails.currentCycle?.label ?? "-"} />
+                      <InfoRow label="Cycle Index" value={hook.partnerDetails.currentCycle?.index ?? "-"} />
+                      <InfoRow label="Cycle Start" value={fmtDateIST(hook.partnerDetails.currentCycle?.start)} />
+                      <InfoRow label="Cycle End" value={fmtDateIST(hook.partnerDetails.currentCycle?.end)} />
                       <div className="mt-4 pt-3 border-t border-red-100">
                         <div className="flex gap-2 flex-wrap">
                           <button
@@ -837,6 +853,12 @@ const PartnersRequestPage: React.FC = () => {
                         <button disabled={hook.bankActionLoading} onClick={async () => { const reason = window.prompt("Enter rejection reason"); if (!reason) return; try { await hook.verifyPartnerBank({ status: "REJECTED", rejectionReason: reason }); toast.success("Bank marked as REJECTED"); } catch (err: any) { toast.error(err?.message || "Failed to reject bank"); } }} className="rounded-full bg-white border px-3 py-1 text-xs font-semibold hover:bg-red-50 disabled:opacity-60">{hook.bankActionLoading ? "..." : "Mark REJECTED"}</button>
                       </div>
                     </div>
+                  </div>
+                  <div className={`mt-5 ${modalCardCls}`}>
+                    <h4 className="font-bold text-red-700 mb-3">Full API Data</h4>
+                    <pre className="text-xs bg-gray-50 border rounded-lg p-3 overflow-auto max-h-[30vh]">
+{JSON.stringify(hook.partnerDetails, null, 2)}
+                    </pre>
                   </div>
                   <div className={`mt-5 ${modalCardCls}`}>
                     <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2"><FaMoneyBillWave /> Cycles & payout</h4>
