@@ -602,6 +602,19 @@ const PartnersRequestPage: React.FC = () => {
                     const keyPaid = `${c.cycleId}_PAID`;
                     const keyCancel = `${c.cycleId}_CANCELLED`;
                     const payoutStatus = c.payout?.status || "PENDING";
+                    const isAutoZeroCancelled =
+                      Boolean(c.isZeroEarningCycle) ||
+                      (payoutStatus === "CANCELLED" &&
+                        (c.payout?.note || "") === "AUTO_ZERO_EARNING_CYCLE");
+                    const disablePaidAction =
+                      !c.canMarkPayout ||
+                      payoutStatus === "PAID" ||
+                      isAutoZeroCancelled ||
+                      hook.completedCycleActionLoadingKey === keyPaid;
+                    const disableCancelAction =
+                      payoutStatus === "CANCELLED" ||
+                      isAutoZeroCancelled ||
+                      hook.completedCycleActionLoadingKey === keyCancel;
                     return (
                       <tr key={c.cycleId} className="odd:bg-white even:bg-gray-50 hover:bg-red-50 transition">
                         <td className="px-4 py-3">
@@ -622,7 +635,12 @@ const PartnersRequestPage: React.FC = () => {
                         <td className="px-4 py-3">{fmtMoney(c.revenue)}</td>
                         <td className="px-4 py-3">{fmtMoney(c.bonus)}</td>
                         <td className="px-4 py-3">{fmtMoney(c.commission)}</td>
-                        <td className="px-4 py-3">{payoutStatus}</td>
+                        <td className="px-4 py-3">
+                          <div>{payoutStatus}</div>
+                          {isAutoZeroCancelled && (
+                            <div className="text-xs text-gray-500">Auto-cancelled (0 earning)</div>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center gap-2 flex-wrap justify-end">
                             <button
@@ -638,7 +656,7 @@ const PartnersRequestPage: React.FC = () => {
                               Manage
                             </button>
                             <button
-                              disabled={!c.canMarkPayout || hook.completedCycleActionLoadingKey === keyPaid}
+                              disabled={disablePaidAction}
                               onClick={async () => {
                                 try {
                                   await hook.markCompletedCyclePayout(c, "PAID");
@@ -652,7 +670,7 @@ const PartnersRequestPage: React.FC = () => {
                               {hook.completedCycleActionLoadingKey === keyPaid ? "..." : "Mark PAID"}
                             </button>
                             <button
-                              disabled={hook.completedCycleActionLoadingKey === keyCancel}
+                              disabled={disableCancelAction}
                               onClick={async () => {
                                 try {
                                   await hook.markCompletedCyclePayout(c, "CANCELLED");
@@ -838,7 +856,92 @@ const PartnersRequestPage: React.FC = () => {
                           {hook.partnerCycles.map((c) => {
                             const keyPaid = `${c.start}_${c.end}_PAID`;
                             const keyCancel = `${c.start}_${c.end}_CANCELLED`;
-                            return <tr key={c.cycleId || `${c.start}_${c.end}`} className="border-t"><td className="px-3 py-2"><div className="font-medium">{c.label || `${fmtDateIST(c.start)} to ${fmtDateIST(c.end)}`}</div><div className="text-xs text-gray-500">{c.isRunning ? "Running cycle" : c.status || "-"}</div></td><td className="px-3 py-2">{c.patients}</td><td className="px-3 py-2">{fmtMoney(c.revenue)}</td><td className="px-3 py-2"><div>{fmtMoney(c.bonus)}</div><div className="text-xs text-gray-500">{(c.bonusPercent || 0) > 0 ? `${c.bonusPercent}% applied` : "No bonus"}</div></td><td className="px-3 py-2">{fmtMoney(c.commission)}</td><td className="px-3 py-2">{c.payout?.status || "PENDING"}</td><td className="px-3 py-2 text-right"><div className="inline-flex gap-2 flex-wrap justify-end"><button onClick={async () => { try { await hook.openCycleReferrals(c); } catch (err: any) { toast.error(err?.message || "Failed to load referrals"); } }} className="rounded-full border px-3 py-1 text-xs font-semibold hover:bg-red-50">View Referrals</button><button disabled={!c.payable || hook.payoutActionLoadingKey === keyPaid} onClick={async () => { try { await hook.markCyclePayout(c, "PAID"); toast.success("Cycle marked as PAID"); } catch (err: any) { toast.error(err?.message || "Failed to mark paid"); } }} className="rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold hover:bg-green-700 disabled:opacity-60">{hook.payoutActionLoadingKey === keyPaid ? "..." : "Mark PAID"}</button><button disabled={hook.payoutActionLoadingKey === keyCancel} onClick={async () => { try { await hook.markCyclePayout(c, "CANCELLED"); toast.success("Cycle marked as CANCELLED"); } catch (err: any) { toast.error(err?.message || "Failed to mark cancelled"); } }} className="rounded-full bg-white border px-3 py-1 text-xs font-semibold hover:bg-red-50 disabled:opacity-60">{hook.payoutActionLoadingKey === keyCancel ? "..." : "Mark CANCELLED"}</button></div></td></tr>;
+                            const payoutStatus = c.payout?.status || "PENDING";
+                            const isAutoZeroCancelled =
+                              Boolean(c.isZeroEarningCycle) ||
+                              (payoutStatus === "CANCELLED" &&
+                                (c.payout?.note || "") === "AUTO_ZERO_EARNING_CYCLE");
+                            const disablePaidAction =
+                              !c.payable ||
+                              payoutStatus === "PAID" ||
+                              isAutoZeroCancelled ||
+                              hook.payoutActionLoadingKey === keyPaid;
+                            const disableCancelAction =
+                              payoutStatus === "CANCELLED" ||
+                              isAutoZeroCancelled ||
+                              hook.payoutActionLoadingKey === keyCancel;
+
+                            return (
+                              <tr key={c.cycleId || `${c.start}_${c.end}`} className="border-t">
+                                <td className="px-3 py-2">
+                                  <div className="font-medium">
+                                    {c.label || `${fmtDateIST(c.start)} to ${fmtDateIST(c.end)}`}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {c.isRunning ? "Running cycle" : c.status || "-"}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2">{c.patients}</td>
+                                <td className="px-3 py-2">{fmtMoney(c.revenue)}</td>
+                                <td className="px-3 py-2">
+                                  <div>{fmtMoney(c.bonus)}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {(c.bonusPercent || 0) > 0 ? `${c.bonusPercent}% applied` : "No bonus"}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2">{fmtMoney(c.commission)}</td>
+                                <td className="px-3 py-2">
+                                  <div>{payoutStatus}</div>
+                                  {isAutoZeroCancelled && (
+                                    <div className="text-xs text-gray-500">Auto-cancelled (0 earning)</div>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <div className="inline-flex gap-2 flex-wrap justify-end">
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          await hook.openCycleReferrals(c);
+                                        } catch (err: any) {
+                                          toast.error(err?.message || "Failed to load referrals");
+                                        }
+                                      }}
+                                      className="rounded-full border px-3 py-1 text-xs font-semibold hover:bg-red-50"
+                                    >
+                                      View Referrals
+                                    </button>
+                                    <button
+                                      disabled={disablePaidAction}
+                                      onClick={async () => {
+                                        try {
+                                          await hook.markCyclePayout(c, "PAID");
+                                          toast.success("Cycle marked as PAID");
+                                        } catch (err: any) {
+                                          toast.error(err?.message || "Failed to mark paid");
+                                        }
+                                      }}
+                                      className="rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold hover:bg-green-700 disabled:opacity-60"
+                                    >
+                                      {hook.payoutActionLoadingKey === keyPaid ? "..." : "Mark PAID"}
+                                    </button>
+                                    <button
+                                      disabled={disableCancelAction}
+                                      onClick={async () => {
+                                        try {
+                                          await hook.markCyclePayout(c, "CANCELLED");
+                                          toast.success("Cycle marked as CANCELLED");
+                                        } catch (err: any) {
+                                          toast.error(err?.message || "Failed to mark cancelled");
+                                        }
+                                      }}
+                                      className="rounded-full bg-white border px-3 py-1 text-xs font-semibold hover:bg-red-50 disabled:opacity-60"
+                                    >
+                                      {hook.payoutActionLoadingKey === keyCancel ? "..." : "Mark CANCELLED"}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
                           })}
                         </tbody>
                       </table>
@@ -1175,6 +1278,7 @@ const PartnersRequestPage: React.FC = () => {
 };
 
 export default PartnersRequestPage;
+
 
 
 

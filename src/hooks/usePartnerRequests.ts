@@ -500,6 +500,9 @@ export function usePartnerRequests() {
   const markCyclePayout = useCallback(
     async (cycle: service.PartnerCycle, status: "PAID" | "CANCELLED") => {
       if (!selectedPartnerId) throw new Error("Partner not selected");
+      if (cycle.isZeroEarningCycle) {
+        throw new Error("Zero-earning cycle is auto-cancelled and cannot be updated manually");
+      }
 
       const key = `${cycle.start}_${cycle.end}_${status}`;
       setPayoutActionLoadingKey(key);
@@ -527,6 +530,9 @@ export function usePartnerRequests() {
     async (row: service.SuperAdminCompletedCycleRow, status: "PAID" | "CANCELLED") => {
       const partnerId = row.partner?.id;
       if (!partnerId) throw new Error("Partner id missing on cycle");
+      if (row.isZeroEarningCycle) {
+        throw new Error("Zero-earning cycle is auto-cancelled and cannot be updated manually");
+      }
 
       const key = `${row.cycleId}_${status}`;
       setCompletedCycleActionLoadingKey(key);

@@ -129,6 +129,7 @@ export type PartnerCycle = {
     paidAt?: string | null;
     note?: string | null;
   } | null;
+  isZeroEarningCycle?: boolean;
   payable: boolean;
 };
 
@@ -174,6 +175,7 @@ export type PartnerCyclesResp = {
   workingCycleId?: string | null;
   workingCycleIndex?: number;
   cyclesStored?: number;
+  autoMarkedZeroEarningCycles?: number;
   summary?: {
     totalPatients: number;
     totalRevenue: number;
@@ -234,6 +236,7 @@ export type SuperAdminCompletedCycleRow = {
     paidAt?: string | null;
     note?: string | null;
   } | null;
+  isZeroEarningCycle?: boolean;
   payable: boolean;
   canMarkPayout?: boolean;
   partner: {
@@ -254,6 +257,7 @@ export type SuperAdminCompletedCycleRow = {
 export type SuperAdminCompletedCyclesResp = {
   success: boolean;
   cycles: SuperAdminCompletedCycleRow[];
+  autoMarkedZeroEarningCycles?: number;
   pagination: PaginationMeta;
   asOf?: string;
 };
@@ -301,7 +305,7 @@ export type MarkPayoutPayload = {
 
 const BASE =
   (typeof import.meta !== "undefined" && (import.meta as any)?.env?.VITE_API_URL) ||
-  "https://services.thelifesavers.in/api";
+  "http://localhost:5000/api";
 
 function readTokenFromLocalStorage(): string | null {
   return localStorage.getItem("token") || localStorage.getItem("authToken") || null;
