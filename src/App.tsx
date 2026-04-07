@@ -35,6 +35,8 @@ const PartnerRequest = lazy(() => import("./pages/PartnerRequest/partnersRequest
 
 const PartnersPricingLists = lazy(() => import("./pages/PartnersPricingLists/PartnersPricingLists"))
 
+const ReportGenerator = lazy(() => import("./pages/ReportGenerator/ReportGenerator"))
+
 // QueryClient with enhanced config
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,7 +66,8 @@ const PATHS = {
   CONTACT_US: "/contact-us", // New path for ContactUs page
   LEARN_ABOUT_DONATION: "/learn-about-donation", // New path for LearnAboutDonation
   PartnerRequest: "/partner-requests",
-  PARTNERPRICINGLISTS: "/partnerspricinglists"
+  PARTNERPRICINGLISTS: "/partnerspricinglists",
+  REPORTGENERATOR: "/report-generator"
 };
 
 const App = () => {
@@ -196,6 +199,20 @@ const App = () => {
               element: (
                 <Suspense fallback={<div>Loading...</div>}>
                   <PartnersPricingLists />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
+          path: PATHS.REPORTGENERATOR,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.REPORTGENERATOR,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <ReportGenerator />
                 </Suspense>
               ),
             },
