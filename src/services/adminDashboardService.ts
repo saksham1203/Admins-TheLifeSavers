@@ -1,3 +1,5 @@
+import { Preferences } from "@capacitor/preferences";
+
 export type StatOverview = {
   totalUsers: number;
   newUsers7d: number;
@@ -186,12 +188,13 @@ const BASE =
     : undefined) ||
   "http://localhost:5000/api";
 
-function readTokenFromLocalStorage(): string | null {
-  return localStorage.getItem("token") || localStorage.getItem("authToken") || null;
+async function readToken(): Promise<string | null> {
+  const { value } = await Preferences.get({ key: "token" });
+  return value || null;
 }
 
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const token = readTokenFromLocalStorage();
+  const token = await readToken();
 
   const res = await fetch(url, {
     ...init,

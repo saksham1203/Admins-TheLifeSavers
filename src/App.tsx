@@ -34,6 +34,7 @@ const LearnAboutDonation = lazy(
 const PartnerRequest = lazy(() => import("./pages/PartnerRequest/partnersRequest"));
 
 const PartnersPricingLists = lazy(() => import("./pages/PartnersPricingLists/PartnersPricingLists"))
+const SuperAdminUserOnboarding = lazy(() => import("./pages/AdminDashboard/SuperAdminUserOnboarding"))
 
 const ReportGenerator = lazy(() => import("./pages/ReportGenerator/ReportGenerator"))
 
@@ -67,7 +68,8 @@ const PATHS = {
   LEARN_ABOUT_DONATION: "/learn-about-donation", // New path for LearnAboutDonation
   PartnerRequest: "/partner-requests",
   PARTNERPRICINGLISTS: "/partnerspricinglists",
-  REPORTGENERATOR: "/report-generator"
+  REPORTGENERATOR: "/report-generator",
+  USERSONBOARDING: "/users-onboarding"
 };
 
 const App = () => {
@@ -213,6 +215,20 @@ const App = () => {
               element: (
                 <Suspense fallback={<div>Loading...</div>}>
                   <ReportGenerator />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
+          path: PATHS.USERSONBOARDING,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.USERSONBOARDING,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <SuperAdminUserOnboarding />
                 </Suspense>
               ),
             },

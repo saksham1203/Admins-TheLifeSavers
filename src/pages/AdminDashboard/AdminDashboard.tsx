@@ -247,6 +247,7 @@ const AdminDashboard: React.FC = () => {
           <SectionCard title={<span className="flex items-center gap-2"><FaBolt /> Quick Actions</span>} right={<div className="text-xs text-gray-500">Admin shortcuts</div>}>
             <div className="flex flex-col sm:flex-row gap-3">
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/lab-onboarding")}>Onboard Lab</button>
+              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/users-onboarding")}>Onboard Users</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/lab-admins-onboarding")}>Onboard Lab Admins</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/promocodes-onboarding")}>Add Promocodes</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/phlebos-onboarding")}>Onboard Phlebo</button>
@@ -675,4 +676,3 @@ const AdminDashboard: React.FC = () => {
 };
 
 export default AdminDashboard;
-
