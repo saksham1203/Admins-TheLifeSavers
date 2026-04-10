@@ -8,7 +8,6 @@ import {
   YAxis,
   Tooltip,
   Line,
-  LineChart,
   Legend,
   Bar,
   ComposedChart,
@@ -292,7 +291,7 @@ const OfflineSales: React.FC = () => {
                 <div className="text-sm text-white/90 mt-1">SuperAdmin manual bookings with catalog cost + profit tracking</div>
               </div>
             </div>
-            <button onClick={loadAll} className="rounded-full bg-white/20 px-3 py-2 text-sm font-semibold hover:bg-white/30 flex items-center gap-2">
+            <button onClick={() => loadAll()} className="rounded-full bg-white/20 px-3 py-2 text-sm font-semibold hover:bg-white/30 flex items-center gap-2">
               <FaSyncAlt /> Refresh
             </button>
             <button onClick={() => navigate("/online-sales-history")} className="rounded-full bg-white text-red-600 px-3 py-2 text-sm font-semibold hover:bg-red-50">
@@ -307,7 +306,7 @@ const OfflineSales: React.FC = () => {
             <input type="date" className="rounded-lg border px-3 py-2 text-sm" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)} />
             <span className="text-gray-400">-</span>
             <input type="date" className="rounded-lg border px-3 py-2 text-sm" value={toDate} min={fromDate} onChange={(e) => setToDate(e.target.value)} />
-            <button onClick={loadAll} className="rounded-full bg-red-600 text-white px-3 py-2 text-sm font-semibold hover:bg-red-700">Apply</button>
+            <button onClick={() => loadAll()} className="rounded-full bg-red-600 text-white px-3 py-2 text-sm font-semibold hover:bg-red-700">Apply</button>
             <button
               onClick={() => {
                 setFromDate("2000-01-01");
