@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as service from "../services/adminDashboardService";
 
-function ymdDaysAgo(daysAgo: number): string {
+function ymdMonthStart(): string {
   const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().slice(0, 10);
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  return first.toISOString().slice(0, 10);
+}
+
+function ymdMonthEnd(): string {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return last.toISOString().slice(0, 10);
 }
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -24,8 +30,8 @@ const EMPTY_OVERVIEW: service.StatOverview = {
 };
 
 export function useAdminDashboard() {
-  const [fromDate, setFromDate] = useState<string>(() => ymdDaysAgo(6));
-  const [toDate, setToDate] = useState<string>(() => ymdDaysAgo(0));
+  const [fromDate, setFromDate] = useState<string>(() => ymdMonthStart());
+  const [toDate, setToDate] = useState<string>(() => ymdMonthEnd());
 
   const [overview, setOverview] = useState<service.StatOverview>(EMPTY_OVERVIEW);
   const [usersTrend, setUsersTrend] = useState<service.TrendPoint[]>([]);
@@ -37,6 +43,7 @@ export function useAdminDashboard() {
   const [labsTrend, setLabsTrend] = useState<service.LabsTrendPoint[]>([]);
   const [orderStatusSummary, setOrderStatusSummary] = useState<service.OrderStatusSummary[]>([]);
   const [guestTrend, setGuestTrend] = useState<service.GuestTrendPoint[]>([]);
+  const [revenueProfitSplitTrend, setRevenueProfitSplitTrend] = useState<service.RevenueProfitSplitTrendPoint[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +52,11 @@ export function useAdminDashboard() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [usersQuery, setUsersQuery] = useState("");
+  const [usersBloodGroup, setUsersBloodGroup] = useState("");
+  const [usersState, setUsersState] = useState("");
+  const [usersDistrict, setUsersDistrict] = useState("");
+  const [usersCity, setUsersCity] = useState("");
+  const [usersScope, setUsersScope] = useState<"all" | "range">("all");
   const [usersPage, setUsersPage] = useState(1);
   const [usersLimit] = useState(10);
   const [usersPagination, setUsersPagination] = useState<service.PaginationMeta>({
@@ -116,6 +128,7 @@ export function useAdminDashboard() {
       setLabsTrend(bundle.labsTrend || []);
       setOrderStatusSummary(bundle.orderStatusSummary || []);
       setGuestTrend(bundle.guestTrend || []);
+      setRevenueProfitSplitTrend(bundle.revenueProfitSplitTrend || []);
 
       const hasSomeData =
         (bundle.usersTrend?.length || 0) +
@@ -127,6 +140,8 @@ export function useAdminDashboard() {
           (bundle.labsTrend?.length || 0) +
           (bundle.orderStatusSummary?.length || 0) +
           (bundle.guestTrend?.length || 0) >
+          0 ||
+        (bundle.revenueProfitSplitTrend?.length || 0) >
         0;
       if (!hasSomeData && (nextOverview?.totalUsers || 0) === 0 && (nextOverview?.totalOrders || 0) === 0) {
         setError("Dashboard returned empty data for this range. Try widening date range.");
@@ -150,6 +165,11 @@ export function useAdminDashboard() {
         page,
         limit: usersLimit,
         search,
+        bloodGroup: usersBloodGroup || undefined,
+        state: usersState || undefined,
+        district: usersDistrict || undefined,
+        city: usersCity || undefined,
+        filterByRange: usersScope === "range",
         from: fromDate,
         to: toDate,
       });
@@ -172,7 +192,18 @@ export function useAdminDashboard() {
     } finally {
       setUsersLoading(false);
     }
-  }, [usersLimit, usersPage, usersQuery, fromDate, toDate]);
+  }, [
+    usersLimit,
+    usersPage,
+    usersQuery,
+    usersBloodGroup,
+    usersState,
+    usersDistrict,
+    usersCity,
+    usersScope,
+    fromDate,
+    toDate,
+  ]);
 
   const openUserDetails = useCallback(async (user: service.DashboardUser) => {
     setSelectedUser(user);
@@ -273,7 +304,18 @@ export function useAdminDashboard() {
       fetchUsers({ page: usersPage, search: usersQuery });
     }, 300);
     return () => clearTimeout(timer);
-  }, [fetchUsers, usersPage, usersQuery, fromDate, toDate]);
+  }, [
+    fetchUsers,
+    usersPage,
+    usersQuery,
+    usersBloodGroup,
+    usersState,
+    usersDistrict,
+    usersCity,
+    usersScope,
+    fromDate,
+    toDate,
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -332,6 +374,7 @@ export function useAdminDashboard() {
     labsTrend,
     orderStatusSummary,
     guestTrend,
+    revenueProfitSplitTrend,
     applyDateRange,
     refresh,
     users,
@@ -339,6 +382,16 @@ export function useAdminDashboard() {
     usersError,
     usersQuery,
     setUsersQuery,
+    usersBloodGroup,
+    setUsersBloodGroup,
+    usersState,
+    setUsersState,
+    usersDistrict,
+    setUsersDistrict,
+    usersCity,
+    setUsersCity,
+    usersScope,
+    setUsersScope,
     usersPage,
     setUsersPage,
     usersPagination,
@@ -375,6 +428,7 @@ export type {
   LabsTrendPoint,
   OrderStatusSummary,
   GuestTrendPoint,
+  RevenueProfitSplitTrendPoint,
   DashboardUser,
   DashboardLab,
   DashboardGuest,

@@ -35,6 +35,8 @@ const PartnerRequest = lazy(() => import("./pages/PartnerRequest/partnersRequest
 
 const PartnersPricingLists = lazy(() => import("./pages/PartnersPricingLists/PartnersPricingLists"))
 const SuperAdminUserOnboarding = lazy(() => import("./pages/AdminDashboard/SuperAdminUserOnboarding"))
+const OfflineSales = lazy(() => import("./pages/OfflineSales/OfflineSales"))
+const OnlineSalesHistory = lazy(() => import("./pages/OnlineSalesHistory/OnlineSalesHistory"))
 
 const ReportGenerator = lazy(() => import("./pages/ReportGenerator/ReportGenerator"))
 
@@ -69,7 +71,9 @@ const PATHS = {
   PartnerRequest: "/partner-requests",
   PARTNERPRICINGLISTS: "/partnerspricinglists",
   REPORTGENERATOR: "/report-generator",
-  USERSONBOARDING: "/users-onboarding"
+  USERSONBOARDING: "/users-onboarding",
+  OFFLINE_SALES: "/offline-sales",
+  ONLINE_SALES_HISTORY: "/online-sales-history",
 };
 
 const App = () => {
@@ -229,6 +233,34 @@ const App = () => {
               element: (
                 <Suspense fallback={<div>Loading...</div>}>
                   <SuperAdminUserOnboarding />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
+          path: PATHS.OFFLINE_SALES,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.OFFLINE_SALES,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <OfflineSales />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
+          path: PATHS.ONLINE_SALES_HISTORY,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.ONLINE_SALES_HISTORY,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <OnlineSalesHistory />
                 </Suspense>
               ),
             },

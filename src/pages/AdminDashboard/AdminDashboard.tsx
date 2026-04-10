@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   FaArrowLeft,
   FaUsers,
@@ -33,10 +33,12 @@ import {
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { useAdminDashboard, type DashboardLab, type DashboardGuest } from "../../hooks/useAdminDashboard";
+import { getCities, getDistricts, getStates } from "../../Components/indiaData";
 
 const numberWithCommas = (n: number) => n.toLocaleString("en-IN");
 const percent = (n: number) => `${Math.round(n)}%`;
 const COLORS = ["#EF4444", "#FB923C", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6"];
+
 
 const pill = (text: string, cls = "bg-red-100 text-red-700 border-red-200") => (
   <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cls}`}>{text}</span>
@@ -79,6 +81,7 @@ const AdminDashboard: React.FC = () => {
     labsTrend,
     orderStatusSummary,
     guestTrend,
+    revenueProfitSplitTrend,
     applyDateRange,
     refresh,
     users,
@@ -86,6 +89,12 @@ const AdminDashboard: React.FC = () => {
     usersError,
     usersQuery,
     setUsersQuery,
+    setUsersBloodGroup,
+    setUsersState,
+    setUsersDistrict,
+    setUsersCity,
+    usersScope,
+    setUsersScope,
     usersPage,
     setUsersPage,
     usersPagination,
@@ -113,32 +122,88 @@ const AdminDashboard: React.FC = () => {
   } = useAdminDashboard();
   const [selectedLabDetails, setSelectedLabDetails] = useState<DashboardLab | null>(null);
   const [selectedGuestDetails, setSelectedGuestDetails] = useState<DashboardGuest | null>(null);
+  const [totalsView, setTotalsView] = useState<"all" | "range">("all");
+  const usersNameInputRef = useRef<HTMLInputElement | null>(null);
+  const [usersBloodGroupDraft, setUsersBloodGroupDraft] = useState("");
+  const [usersStateDraft, setUsersStateDraft] = useState("");
+  const [usersDistrictDraft, setUsersDistrictDraft] = useState("");
+  const [usersCityDraft, setUsersCityDraft] = useState("");
+
+  const bloodGroups = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+  const statesOptions = useMemo(() => getStates(), []);
+  const districtsOptions = useMemo(() => (usersStateDraft ? getDistricts(usersStateDraft) : []), [usersStateDraft]);
+  const citiesOptions = useMemo(
+    () => (usersStateDraft && usersDistrictDraft ? getCities(usersStateDraft, usersDistrictDraft) : []),
+    [usersStateDraft, usersDistrictDraft]
+  );
+
 
   const kpis = useMemo(
     () => [
       {
         id: "users",
         title: "Total Users",
-        value: numberWithCommas(overview.totalUsers || 0),
-        hint: `${overview.newUsers7d || 0} new (7d)`,
+        value: numberWithCommas(
+          totalsView === "range"
+            ? (usersPagination.totalFiltered ?? usersPagination.total ?? 0)
+            : (overview.totalUsers || 0)
+        ),
+        hint:
+          totalsView === "range"
+            ? `Users in selected range (${fromDate} to ${toDate})`
+            : `${overview.newUsers7d || 0} new (7d)`,
         spark: usersTrend.map((p) => ({ date: p.date, v: p.users ?? 0 })),
         icon: <FaUsers className="text-red-600" />,
       },
       {
         id: "orders",
         title: "Total Orders",
-        value: numberWithCommas(overview.totalOrders || 0),
-        hint: `${overview.testsBookedToday || 0} today`,
+        value: numberWithCommas(
+          totalsView === "range"
+            ? (overview.selectedRangeOrders || 0)
+            : (overview.totalOrders || 0)
+        ),
+        hint:
+          totalsView === "range"
+            ? `Orders in selected range (${fromDate} to ${toDate})`
+            : `${overview.testsBookedToday || 0} today`,
         spark: ordersTrend.map((p) => ({ date: p.date, v: p.orders ?? 0 })),
         icon: <FaClipboardList className="text-red-600" />,
       },
       {
         id: "revenue",
-        title: "30d Revenue",
-        value: `Rs${numberWithCommas(overview.revenue30d || 0)}`,
-        hint: `Last: ${overview.lastUpdated ? new Date(overview.lastUpdated).toLocaleDateString() : "-"}`,
+        title: "Online Gross Revenue",
+        value: `Rs${numberWithCommas(overview.selectedRangeOnlineRevenue || 0)}`,
+        hint: `Gross sales (before deductions) • ${fromDate} to ${toDate}`,
         spark: revenueTrend.map((p) => ({ date: p.date, v: p.revenue ?? 0 })),
         icon: <FaRupeeSign className="text-red-600" />,
+      },
+      {
+        id: "offline_revenue",
+        title: "Offline Gross Revenue",
+        value: `Rs${numberWithCommas(overview.selectedRangeOfflineRevenue || 0)}`,
+        hint: `Gross sales (before deductions) • ${fromDate} to ${toDate}`,
+        spark: revenueProfitSplitTrend.map((p) => ({ date: p.date, v: p.offlineRevenue ?? 0 })),
+        icon: <FaRupeeSign className="text-red-600" />,
+      },
+      {
+        id: "total_revenue",
+        title: "Total Gross Revenue",
+        value: `Rs${numberWithCommas(overview.selectedRangeCombinedRevenue || 0)}`,
+        hint: `Online + Offline gross sales • ${fromDate} to ${toDate}`,
+        spark: revenueProfitSplitTrend.map((p) => ({ date: p.date, v: p.combinedRevenue ?? 0 })),
+        icon: <FaRupeeSign className="text-red-600" />,
+      },
+      {
+        id: "profit",
+        title: "Profit / Loss",
+        value: `Rs${numberWithCommas(Math.abs(overview.selectedRangeCombinedProfit || 0))}`,
+        hint:
+          (overview.selectedRangeCombinedProfit || 0) >= 0
+            ? "Net after cost + commissions + adjustments"
+            : "Net loss after cost + commissions + adjustments",
+        spark: revenueProfitSplitTrend.map((p) => ({ date: p.date, v: p.combinedProfit ?? 0 })),
+        icon: <FaRupeeSign className="text-red-600" />, 
       },
       {
         id: "requests",
@@ -149,7 +214,18 @@ const AdminDashboard: React.FC = () => {
         icon: <FaChartLine className="text-red-600" />,
       },
     ],
-    [overview, usersTrend, revenueTrend, ordersTrend]
+    [
+      overview,
+      totalsView,
+      usersPagination.total,
+      usersPagination.totalFiltered,
+      usersTrend,
+      revenueTrend,
+      ordersTrend,
+      fromDate,
+      toDate,
+      revenueProfitSplitTrend,
+    ]
   );
 
   const efficiencyTrend = useMemo(() => {
@@ -194,6 +270,44 @@ const AdminDashboard: React.FC = () => {
     }));
   }, [paymentMethods]);
 
+  const forecastTrend = useMemo(() => {
+    const data: Array<{ date: string; revenue: number | null; projectedRevenue: number | null }> = (revenueTrend || []).slice(-14).map((r) => ({
+      date: r.date,
+      revenue: Number(r.revenue || 0),
+      projectedRevenue: null,
+    }));
+    if (data.length < 2) return data;
+    let deltaSum = 0;
+    for (let i = 1; i < data.length; i += 1) {
+      deltaSum += Number(data[i].revenue || 0) - Number(data[i - 1].revenue || 0);
+    }
+    const avgDelta = deltaSum / (data.length - 1);
+    let last = Number(data[data.length - 1]?.revenue || 0);
+    const out = [...data];
+    for (let i = 1; i <= 7; i += 1) {
+      last = Math.max(0, Math.round(last + avgDelta));
+      out.push({
+        date: `F+${i}`,
+        revenue: null,
+        projectedRevenue: last,
+      });
+    }
+    return out;
+  }, [revenueTrend]);
+
+  const funnelRows = useMemo(() => {
+    const registered = Number(overview.newUsers7d || 0);
+    const ordered = Number(overview.selectedRangeOrders || 0);
+    const completed = ordersTrend.reduce((sum, row) => sum + Number(row.completed || 0), 0);
+    const reportReadyEstimate = Math.max(0, Math.round(completed * 0.9));
+    return [
+      { stage: "Registered", count: registered },
+      { stage: "Ordered", count: ordered },
+      { stage: "Completed", count: completed },
+      { stage: "Report Ready", count: reportReadyEstimate },
+    ];
+  }, [overview, ordersTrend]);
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-start justify-center p-3 sm:p-6" style={{ paddingTop: "4rem", paddingBottom: "4rem" }}>
       <div className="bg-white/90 backdrop-blur rounded-2xl shadow-xl w-full max-w-7xl overflow-hidden relative ring-1 ring-red-100">
@@ -232,6 +346,20 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <div className="rounded-full border bg-white p-1 flex items-center gap-1">
+                <button
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${totalsView === "all" ? "bg-red-600 text-white" : "text-gray-700 hover:bg-red-50"}`}
+                  onClick={() => setTotalsView("all")}
+                >
+                  Users/Orders: All
+                </button>
+                <button
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${totalsView === "range" ? "bg-red-600 text-white" : "text-gray-700 hover:bg-red-50"}`}
+                  onClick={() => setTotalsView("range")}
+                >
+                  Users/Orders: Range
+                </button>
+              </div>
               <button onClick={refresh} className="rounded-full bg-white border px-3 py-2 text-sm font-semibold hover:bg-red-50 flex items-center gap-2">
                 <FaSyncAlt /> <span className="hidden sm:inline">Refresh</span>
               </button>
@@ -253,21 +381,23 @@ const AdminDashboard: React.FC = () => {
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/phlebos-onboarding")}>Onboard Phlebo</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/partner-requests")}>Onboard Partners</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/partnerspricinglists")}>Partners Pricing Lists</button>
+              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/offline-sales")}>Offline Sales</button>
+              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/online-sales-history")}>Online History</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/report-generator")}>Report Generator</button>
               <button className="w-full sm:w-auto rounded-lg bg-white border px-4 py-2 text-sm font-semibold hover:bg-red-50" onClick={() => navigate("/reports")}>Go to Reports</button>
 
             </div>
           </SectionCard>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {kpis.map((k) => (
-              <SectionCard key={k.id} title={<span className="flex items-center gap-2">{k.icon} {k.title}</span>}>
+              <SectionCard key={k.id} className="min-h-[220px]" title={<span className="flex items-center gap-2">{k.icon} {k.title}</span>}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-2xl sm:text-3xl font-extrabold text-gray-900">{k.value}</div>
                     <div className="text-xs text-gray-500 mt-1">{k.hint}</div>
                   </div>
-                  <div className="w-28 h-12 sm:w-32 sm:h-12">
+                  <div className="w-32 h-14 sm:w-40 sm:h-16">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={k.spark}>
                         <Line type="monotone" dataKey="v" stroke="#EF4444" strokeWidth={2} dot={false} />
@@ -293,10 +423,36 @@ const AdminDashboard: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
               <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2"><div className="text-xs text-red-700">Range Orders</div><div className="text-xl font-bold text-gray-900">{numberWithCommas(overview.selectedRangeOrders || 0)}</div></div>
               <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2"><div className="text-xs text-amber-700">Range Revenue</div><div className="text-xl font-bold text-gray-900">Rs{numberWithCommas(overview.selectedRangeRevenue || 0)}</div></div>
+              <div className="rounded-lg border border-green-100 bg-green-50 px-3 py-2"><div className="text-xs text-green-700">Online Revenue</div><div className="text-xl font-bold text-gray-900">Rs{numberWithCommas(overview.selectedRangeOnlineRevenue || 0)}</div></div>
+              <div className="rounded-lg border border-lime-100 bg-lime-50 px-3 py-2"><div className="text-xs text-lime-700">Online Profit</div><div className="text-xl font-bold text-gray-900">Rs{numberWithCommas(overview.selectedRangeOnlineProfit || 0)}</div></div>
+              <div className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2"><div className="text-xs text-rose-700">Partner Commissions (Month)</div><div className="text-xl font-bold text-gray-900">Rs{numberWithCommas(overview.selectedRangePartnerCommission || 0)}</div></div>
+              <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2"><div className="text-xs text-blue-700">Offline Revenue</div><div className="text-xl font-bold text-gray-900">Rs{numberWithCommas(overview.selectedRangeOfflineRevenue || 0)}</div></div>
+              <div className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2"><div className="text-xs text-cyan-700">Offline Profit</div><div className="text-xl font-bold text-gray-900">Rs{numberWithCommas(overview.selectedRangeOfflineProfit || 0)}</div></div>
+              <div className="rounded-lg border border-purple-100 bg-purple-50 px-3 py-2"><div className="text-xs text-purple-700">Combined Revenue</div><div className="text-xl font-bold text-gray-900">Rs{numberWithCommas(overview.selectedRangeCombinedRevenue || 0)}</div></div>
+              <div className="rounded-lg border border-fuchsia-100 bg-fuchsia-50 px-3 py-2"><div className="text-xs text-fuchsia-700">Combined Profit</div><div className="text-xl font-bold text-gray-900">Rs{numberWithCommas(overview.selectedRangeCombinedProfit || 0)}</div></div>
               <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2"><div className="text-xs text-blue-700">Total Labs</div><div className="text-xl font-bold text-gray-900">{numberWithCommas(overview.totalLabs || 0)}</div></div>
               <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2"><div className="text-xs text-indigo-700">Active Partners</div><div className="text-xl font-bold text-gray-900">{numberWithCommas(overview.activePartners || 0)}</div></div>
               <div className="rounded-lg border border-fuchsia-100 bg-fuchsia-50 px-3 py-2"><div className="text-xs text-fuchsia-700">Active Promocodes</div><div className="text-xl font-bold text-gray-900">{numberWithCommas(overview.activePromos || 0)}</div></div>
               <div className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2"><div className="text-xs text-teal-700">Total Phlebos</div><div className="text-xl font-bold text-gray-900">{numberWithCommas(overview.totalPhlebos || 0)}</div></div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title={<span className="flex items-center gap-2"><FaChartLine /> Revenue & Profit Split (Online vs Offline)</span>} right={<div className="text-xs text-gray-500">Selected range</div>}>
+            <div className="w-full h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={revenueProfitSplitTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="onlineRevenue" fill="#16a34a" name="Online Revenue" />
+                  <Bar dataKey="offlineRevenue" fill="#2563eb" name="Offline Revenue" />
+                  <Line type="monotone" dataKey="onlineProfit" stroke="#65a30d" strokeWidth={2} name="Online Profit" />
+                  <Line type="monotone" dataKey="offlineProfit" stroke="#0891b2" strokeWidth={2} name="Offline Profit" />
+                  <Line type="monotone" dataKey="combinedProfit" stroke="#7c3aed" strokeWidth={2} name="Combined Profit" />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
           </SectionCard>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -335,6 +491,38 @@ const AdminDashboard: React.FC = () => {
                     <Tooltip />
                     <Area type="monotone" dataKey="revenue" stroke="#FB923C" fill="url(#colorRev)" />
                   </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </SectionCard>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SectionCard title={<span className="flex items-center gap-2"><FaChartLine /> Revenue Forecast (7D)</span>} right={<div className="text-xs text-gray-500">Simple projection</div>}>
+              <div className="w-full h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={forecastTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="revenue" stroke="#FB923C" strokeWidth={2} dot={false} name="Actual Revenue" />
+                    <Line type="monotone" dataKey="projectedRevenue" stroke="#7C3AED" strokeWidth={2} strokeDasharray="6 6" dot={false} name="Projected Revenue" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </SectionCard>
+
+            <SectionCard title={<span className="flex items-center gap-2"><FaUsers /> Conversion Funnel</span>} right={<div className="text-xs text-gray-500">Registration to report-ready</div>}>
+              <div className="w-full h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={funnelRows}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="stage" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#EF4444" />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </SectionCard>
@@ -492,9 +680,119 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           <SectionCard title={<span className="flex items-center gap-2"><FaUsers /> Users Directory</span>} right={<div className="text-xs text-gray-500">Total: {usersPagination.totalAll ?? usersPagination.total} | In range: {usersPagination.totalFiltered ?? usersPagination.total}</div>}>
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-3">
-              <input value={usersQuery} onChange={(e) => { setUsersPage(1); setUsersQuery(e.target.value); }} placeholder="Search users" className="w-full sm:max-w-md rounded-lg border px-3 py-2 text-sm" />
-              <div className="text-xs text-gray-500">Page {usersPagination.page}/{usersPagination.totalPages}</div>
+            <div className="flex flex-col gap-3 mb-3">
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                <input
+                  ref={usersNameInputRef}
+                  defaultValue={usersQuery}
+                  placeholder="Search by name"
+                  className="w-full sm:max-w-md rounded-lg border px-3 py-2 text-sm"
+                />
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full border bg-white p-1 flex items-center gap-1">
+                    <button
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${usersScope === "all" ? "bg-red-600 text-white" : "text-gray-700 hover:bg-red-50"}`}
+                      onClick={() => { setUsersPage(1); setUsersScope("all"); }}
+                    >
+                      All Users
+                    </button>
+                    <button
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${usersScope === "range" ? "bg-red-600 text-white" : "text-gray-700 hover:bg-red-50"}`}
+                      onClick={() => { setUsersPage(1); setUsersScope("range"); }}
+                    >
+                      In Date Range
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-500">Page {usersPagination.page}/{usersPagination.totalPages}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                <select value={usersBloodGroupDraft} onChange={(e) => setUsersBloodGroupDraft(e.target.value)} className="rounded-lg border px-3 py-2 text-sm">
+                  {bloodGroups.map((bg) => (
+                    <option key={bg || "all"} value={bg}>
+                      {bg || "All Blood Groups"}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={usersStateDraft}
+                  onChange={(e) => {
+                    setUsersStateDraft(e.target.value);
+                    setUsersDistrictDraft("");
+                    setUsersCityDraft("");
+                  }}
+                  className="rounded-lg border px-3 py-2 text-sm"
+                >
+                  <option value="">All States</option>
+                  {statesOptions.map((st) => (
+                    <option key={st} value={st}>
+                      {st.split("_").join(" ")}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={usersDistrictDraft}
+                  onChange={(e) => {
+                    setUsersDistrictDraft(e.target.value);
+                    setUsersCityDraft("");
+                  }}
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  disabled={!usersStateDraft}
+                >
+                  <option value="">All Districts</option>
+                  {districtsOptions.map((d) => (
+                    <option key={d} value={d}>
+                      {d.split("_").join(" ")}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={usersCityDraft}
+                  onChange={(e) => setUsersCityDraft(e.target.value)}
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  disabled={!usersStateDraft || !usersDistrictDraft}
+                >
+                  <option value="">All Cities</option>
+                  {citiesOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c.split("_").join(" ")}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="rounded-lg bg-red-600 text-white px-3 py-2 text-sm font-semibold hover:bg-red-700"
+                      onClick={() => {
+                        setUsersPage(1);
+                        setUsersQuery((usersNameInputRef.current?.value || "").trim());
+                        setUsersBloodGroup(usersBloodGroupDraft);
+                        setUsersState(usersStateDraft);
+                        setUsersDistrict(usersDistrictDraft);
+                      setUsersCity(usersCityDraft);
+                    }}
+                  >
+                    Apply Filters
+                  </button>
+                  <button
+                    className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-red-50"
+                    onClick={() => {
+                      if (usersNameInputRef.current) usersNameInputRef.current.value = "";
+                      setUsersBloodGroupDraft("");
+                      setUsersStateDraft("");
+                      setUsersDistrictDraft("");
+                      setUsersCityDraft("");
+                      setUsersPage(1);
+                      setUsersQuery("");
+                      setUsersBloodGroup("");
+                      setUsersState("");
+                      setUsersDistrict("");
+                      setUsersCity("");
+                    }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
             </div>
             {usersError ? <div className="text-sm text-red-600 mb-3">{usersError}</div> : null}
             <div className="overflow-auto border rounded-lg">
@@ -676,3 +974,8 @@ const AdminDashboard: React.FC = () => {
 };
 
 export default AdminDashboard;
+
+
+
+
+

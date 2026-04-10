@@ -14,6 +14,7 @@ import {
   FaUserShield,
   FaFlask,
   FaUserPlus,
+  FaClipboardList,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { useAuth } from "../../Context/AuthContext";
@@ -222,6 +223,11 @@ const Header: React.FC = () => {
                 to: "/users-onboarding",
                 icon: <FaUserPlus className="mr-2 text-xl" />,
                 label: "User Onboarding",
+              },
+              {
+                to: "/offline-sales",
+                icon: <FaClipboardList className="mr-2 text-xl" />,
+                label: "Offline Sales",
               },
               {
                 to: "/blogs",

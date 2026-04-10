@@ -609,11 +609,9 @@ const PartnersRequestPage: React.FC = () => {
                     const disablePaidAction =
                       !c.canMarkPayout ||
                       payoutStatus === "PAID" ||
-                      isAutoZeroCancelled ||
                       hook.completedCycleActionLoadingKey === keyPaid;
                     const disableCancelAction =
                       payoutStatus === "CANCELLED" ||
-                      isAutoZeroCancelled ||
                       hook.completedCycleActionLoadingKey === keyCancel;
                     return (
                       <tr key={c.cycleId} className="odd:bg-white even:bg-gray-50 hover:bg-red-50 transition">
@@ -886,11 +884,9 @@ const PartnersRequestPage: React.FC = () => {
                             const disablePaidAction =
                               !c.payable ||
                               payoutStatus === "PAID" ||
-                              isAutoZeroCancelled ||
                               hook.payoutActionLoadingKey === keyPaid;
                             const disableCancelAction =
                               payoutStatus === "CANCELLED" ||
-                              isAutoZeroCancelled ||
                               hook.payoutActionLoadingKey === keyCancel;
 
                             return (

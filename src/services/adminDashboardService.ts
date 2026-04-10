@@ -26,6 +26,15 @@ export type StatOverview = {
   unverifiedGuests?: number;
   guests7d?: number;
   newGuestsToday?: number;
+  selectedRangeOnlineOrders?: number;
+  selectedRangeOnlineRevenue?: number;
+  selectedRangeOnlineProfit?: number;
+  selectedRangePartnerCommission?: number;
+  selectedRangeOfflineOrders?: number;
+  selectedRangeOfflineRevenue?: number;
+  selectedRangeOfflineProfit?: number;
+  selectedRangeCombinedRevenue?: number;
+  selectedRangeCombinedProfit?: number;
 };
 
 export type TrendPoint = {
@@ -42,6 +51,15 @@ export type TopTest = { test: string; bookings: number };
 export type LabsTrendPoint = { date: string; labs: number };
 export type OrderStatusSummary = { status: string; count: number };
 export type GuestTrendPoint = { date: string; guests: number; verified: number };
+export type RevenueProfitSplitTrendPoint = {
+  date: string;
+  onlineRevenue: number;
+  onlineProfit: number;
+  offlineRevenue: number;
+  offlineProfit: number;
+  combinedRevenue: number;
+  combinedProfit: number;
+};
 
 export type DashboardLab = {
   id: string;
@@ -95,6 +113,7 @@ export type DashboardBundle = {
   labsTrend: LabsTrendPoint[];
   orderStatusSummary: OrderStatusSummary[];
   guestTrend: GuestTrendPoint[];
+  revenueProfitSplitTrend: RevenueProfitSplitTrendPoint[];
 };
 
 export type PaginationMeta = {
@@ -158,6 +177,8 @@ export type DashboardUsersParams = {
   bloodGroup?: string;
   city?: string;
   state?: string;
+  district?: string;
+  filterByRange?: boolean;
   from?: string;
   to?: string;
 };
@@ -260,6 +281,14 @@ export async function fetchGuestTrend(range: DashboardDateRange): Promise<GuestT
   return apiFetch<GuestTrendPoint[]>(`${BASE}/admin/guests-trend?${buildRangeQuery(range)}`);
 }
 
+export async function fetchRevenueProfitSplitTrend(
+  range: DashboardDateRange
+): Promise<RevenueProfitSplitTrendPoint[]> {
+  return apiFetch<RevenueProfitSplitTrendPoint[]>(
+    `${BASE}/admin/revenue-profit-split-trend?${buildRangeQuery(range)}`
+  );
+}
+
 export async function fetchPartnerRequestsCount(): Promise<number | null> {
   const json = await apiFetch<{ success?: boolean; count?: number }>(`${BASE}/admin/partner-requests/count`);
   if (typeof json?.count === "number") return json.count;
@@ -278,6 +307,7 @@ export async function fetchDashboardBundle(range: DashboardDateRange): Promise<D
     fetchLabsTrend(range),
     fetchOrderStatusSummary(range),
     fetchGuestTrend(range),
+    fetchRevenueProfitSplitTrend(range),
   ]);
 
   const overview = settled[0].status === "fulfilled" ? settled[0].value : ({
@@ -299,6 +329,8 @@ export async function fetchDashboardBundle(range: DashboardDateRange): Promise<D
     labsTrend: settled[7].status === "fulfilled" && Array.isArray(settled[7].value) ? settled[7].value : [],
     orderStatusSummary: settled[8].status === "fulfilled" && Array.isArray(settled[8].value) ? settled[8].value : [],
     guestTrend: settled[9].status === "fulfilled" && Array.isArray(settled[9].value) ? settled[9].value : [],
+    revenueProfitSplitTrend:
+      settled[10].status === "fulfilled" && Array.isArray(settled[10].value) ? settled[10].value : [],
   };
 }
 
@@ -310,6 +342,8 @@ export async function fetchDashboardUsers(params?: DashboardUsersParams): Promis
   if (params?.bloodGroup?.trim()) qp.set("bloodGroup", params.bloodGroup.trim());
   if (params?.city?.trim()) qp.set("city", params.city.trim());
   if (params?.state?.trim()) qp.set("state", params.state.trim());
+  if (params?.district?.trim()) qp.set("district", params.district.trim());
+  if (typeof params?.filterByRange === "boolean") qp.set("filterByRange", String(params.filterByRange));
   if (params?.from) qp.set("from", params.from);
   if (params?.to) qp.set("to", params.to);
 
