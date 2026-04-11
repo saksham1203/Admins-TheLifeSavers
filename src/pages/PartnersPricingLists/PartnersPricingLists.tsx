@@ -31,12 +31,16 @@ const LAB_OPTIONS = [
   { label: "Healthians", value: "healthians" },
   { label: "Thyrocare", value: "thyrocare" },
   { label: "Dr. Mittal", value: "dr_mittal" },
+  { label: "Maxx Path Diagnostics", value: "maxx_path_diagnostics" },
 ];
 
 const PARTNER_TYPES = [
+  { label: "Doctors", value: "Doctors" },
   { label: "Chemist", value: "chemist" },
   { label: "Clinic", value: "clinic" },
   { label: "Gym", value: "gym" },
+  { label: "Phlebos", value: "phlebos" },
+  { label: "Others", value: "Others" },
 ];
 
 /* ================= COMPONENT ================= */
