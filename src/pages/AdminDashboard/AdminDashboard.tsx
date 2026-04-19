@@ -94,8 +94,6 @@ const AdminDashboard: React.FC = () => {
     setUsersState,
     setUsersDistrict,
     setUsersCity,
-    usersScope,
-    setUsersScope,
     usersPage,
     setUsersPage,
     usersPagination,
