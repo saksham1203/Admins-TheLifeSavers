@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as service from "../services/adminDashboardService";
 
+function toLocalYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function ymdMonthStart(): string {
   const d = new Date();
   const first = new Date(d.getFullYear(), d.getMonth(), 1);
-  return first.toISOString().slice(0, 10);
+  return toLocalYmd(first);
 }
 
 function ymdMonthEnd(): string {
   const d = new Date();
   const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-  return last.toISOString().slice(0, 10);
+  return toLocalYmd(last);
 }
 
 function getErrorMessage(err: unknown, fallback: string): string {

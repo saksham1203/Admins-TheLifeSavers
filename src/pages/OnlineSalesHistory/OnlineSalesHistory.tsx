@@ -7,14 +7,21 @@ import {
   type SalesOrderHistoryRow,
 } from "../../services/offlineSales.service";
 
+const toLocalYmd = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 const monthStartYmd = () => {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  return toLocalYmd(new Date(d.getFullYear(), d.getMonth(), 1));
 };
 
 const monthEndYmd = () => {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  return toLocalYmd(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 };
 
 const money = (n: number) => `Rs${Number(n || 0).toLocaleString("en-IN")}`;
@@ -25,6 +32,7 @@ const OnlineSalesHistory: React.FC = () => {
   const [toDate, setToDate] = useState<string>(monthEndYmd());
   const [search, setSearch] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
@@ -92,7 +100,7 @@ const OnlineSalesHistory: React.FC = () => {
             <button
               onClick={() => {
                 setFromDate("2000-01-01");
-                setToDate(new Date().toISOString().slice(0, 10));
+                setToDate(toLocalYmd(new Date()));
                 setTimeout(() => load(1), 0);
               }}
               className="rounded-full bg-white border px-3 py-2 text-sm font-semibold hover:bg-red-50"
@@ -119,28 +127,99 @@ const OnlineSalesHistory: React.FC = () => {
                   <th className="p-2">Patient</th>
                   <th className="p-2">Lab</th>
                   <th className="p-2">Revenue</th>
+                  <th className="p-2">Cost</th>
                   <th className="p-2">Partner Commission</th>
                   <th className="p-2">Net Profit</th>
                   <th className="p-2">Order Status</th>
                   <th className="p-2">Payment</th>
+                  <th className="p-2">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.map((o) => (
-                  <tr key={o.id} className="border-t">
-                    <td className="p-2 font-semibold">{o.orderId}</td>
-                    <td className="p-2">{new Date(o.createdAt).toLocaleString()}</td>
-                    <td className="p-2">{o.patientName}</td>
-                    <td className="p-2">{o.lab?.name || "-"}</td>
-                    <td className="p-2">{money(o.finance?.revenue || o.total || 0)}</td>
-                    <td className="p-2">{money(o.finance?.partnerCommission || 0)}</td>
-                    <td className="p-2">{money(o.finance?.netProfit || 0)}</td>
-                    <td className="p-2">{o.status || "-"}</td>
-                    <td className="p-2">{o.paymentStatus || "-"}</td>
-                  </tr>
+                  <React.Fragment key={o.id}>
+                    <tr className="border-t">
+                      <td className="p-2 font-semibold">{o.orderId}</td>
+                      <td className="p-2">{new Date(o.createdAt).toLocaleString()}</td>
+                      <td className="p-2">{o.patientName}</td>
+                      <td className="p-2">{o.lab?.name || "-"}</td>
+                      <td className="p-2">{money(o.finance?.revenue || o.total || 0)}</td>
+                      <td className="p-2">{money(o.finance?.cost || 0)}</td>
+                      <td className="p-2">{money(o.finance?.partnerCommission || 0)}</td>
+                      <td className="p-2">{money(o.finance?.netProfit || 0)}</td>
+                      <td className="p-2">{o.status || "-"}</td>
+                      <td className="p-2">{o.paymentStatus || "-"}</td>
+                      <td className="p-2">
+                        <button
+                          className="rounded border px-2 py-1 text-xs hover:bg-red-50"
+                          onClick={() => setExpandedOrderId((prev) => (prev === o.id ? null : o.id))}
+                        >
+                          {expandedOrderId === o.id ? "Hide" : "View"}
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedOrderId === o.id ? (
+                      <tr className="border-t bg-red-50/30">
+                        <td className="p-3" colSpan={11}>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-700">
+                            <div className="rounded border bg-white p-2">
+                              <div className="font-semibold mb-1">Patient</div>
+                              <div>Phone: {o.patientPhone || "-"}</div>
+                              <div>Email: {o.patientEmail || "-"}</div>
+                              <div>Gender/Age: {o.gender || "-"} / {o.age ?? "-"}</div>
+                              <div>Address: {[o.address, o.city, o.pincode].filter(Boolean).join(", ") || "-"}</div>
+                            </div>
+                            <div className="rounded border bg-white p-2">
+                              <div className="font-semibold mb-1">Order Meta</div>
+                              <div>Payment Method: {o.paymentMethod || "-"}</div>
+                              <div>Referral Code: {o.referredBy || "-"}</div>
+                              <div>Collection Time: {o.pickupWindow || "-"}</div>
+                              <div>Instructions: {o.instructions || "-"}</div>
+                            </div>
+                            <div className="rounded border bg-white p-2">
+                              <div className="font-semibold mb-1">Finance</div>
+                              <div>Revenue: {money(o.finance?.revenue || o.total || 0)}</div>
+                              <div>Cost: {money(o.finance?.cost || 0)}</div>
+                              <div>Partner Commission: {money(o.finance?.partnerCommission || 0)}</div>
+                              <div>Net Profit: {money(o.finance?.netProfit || 0)}</div>
+                            </div>
+                            <div className="md:col-span-3 rounded border bg-white p-2">
+                              <div className="font-semibold mb-1">Items</div>
+                              {o.items?.length ? (
+                                <div className="overflow-auto">
+                                  <table className="min-w-full text-xs">
+                                    <thead>
+                                      <tr className="text-left">
+                                        <th className="pr-3">Type</th>
+                                        <th className="pr-3">Name</th>
+                                        <th className="pr-3">Price</th>
+                                        <th className="pr-3">Partner Margin</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {o.items.map((it) => (
+                                        <tr key={it.id}>
+                                          <td className="pr-3">{it.type}</td>
+                                          <td className="pr-3">{it.name}</td>
+                                          <td className="pr-3">{money(it.price || 0)}</td>
+                                          <td className="pr-3">{money(it.partnerMargin || 0)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <div>{o.itemSummary || "-"}</div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </React.Fragment>
                 ))}
                 {!orders.length ? (
-                  <tr><td className="p-3 text-gray-500" colSpan={9}>No online orders found for this range.</td></tr>
+                  <tr><td className="p-3 text-gray-500" colSpan={11}>No online orders found for this range.</td></tr>
                 ) : null}
               </tbody>
             </table>

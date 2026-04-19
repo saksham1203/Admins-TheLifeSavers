@@ -53,7 +53,9 @@ export type OfflineOrderItemInput = {
 };
 
 export type CreateOfflineOrderInput = {
-  labId: string;
+  labId?: string;
+  externalLabName?: string;
+  externalLabAddress?: string;
   lab?: string;
   partnerType?: string;
   orderDate?: string;
@@ -105,13 +107,29 @@ export type SalesOrderHistoryRow = {
   patientName: string;
   patientPhone?: string;
   patientEmail?: string;
+  gender?: string | null;
+  age?: number | null;
+  address?: string | null;
+  city?: string | null;
+  pincode?: string | null;
+  pickupWindow?: string | null;
+  instructions?: string | null;
   referredBy?: string | null;
   status: string;
   paymentStatus: string;
   paymentMethod: string;
   paymentMode?: "CASH" | "ONLINE" | string;
   total: number;
+  itemSummary?: string;
   lab?: { id: string; name: string };
+  items?: Array<{
+    id: string;
+    type: string;
+    name: string;
+    price: number;
+    serverItemId?: string | null;
+    partnerMargin?: number | null;
+  }>;
   finance?: {
     revenue?: number;
     cost?: number;
@@ -120,6 +138,7 @@ export type SalesOrderHistoryRow = {
     netProfit?: number;
     partnerCommission?: number;
   };
+  meta?: Record<string, unknown>;
 };
 
 export type SalesOrderHistoryResp = {

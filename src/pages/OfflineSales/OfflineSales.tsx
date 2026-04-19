@@ -27,21 +27,34 @@ import {
 
 type FormItem = {
   uid: string;
+  entryMode: "CATALOG" | "MANUAL";
   itemType: "TEST" | "PACKAGE";
   priceRowId: string;
+  manualName: string;
+  manualCode: string;
   quantity: number;
   sellingPrice: number;
   costPrice: number;
 };
 
-const todayYmd = () => new Date().toISOString().slice(0, 10);
+const normalizeKey = (s: string) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const optionLabelForRow = (r: OfflineCatalogRow) =>
+  `${r.name} [${r.testId || r.packageId || r.id}] (${money(r.rates.defaultSell)} / cost ${money(r.rates.defaultCost)})`;
+
+const toLocalYmd = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+const todayYmd = () => toLocalYmd(new Date());
 const monthStartYmd = () => {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  return toLocalYmd(new Date(d.getFullYear(), d.getMonth(), 1));
 };
 const monthEndYmd = () => {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  return toLocalYmd(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 };
 const money = (n: number) => `Rs${Number(n || 0).toLocaleString("en-IN")}`;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -80,6 +93,9 @@ const OfflineSales: React.FC = () => {
   const [orders, setOrders] = useState<SalesOrderHistoryRow[]>([]);
 
   const [selectedLabId, setSelectedLabId] = useState<string>("");
+  const [isExternalLab, setIsExternalLab] = useState(false);
+  const externalLabNameRef = useRef<HTMLInputElement | null>(null);
+  const externalLabAddressRef = useRef<HTMLInputElement | null>(null);
   const [selectedPricingLab, setSelectedPricingLab] = useState<string>("");
   const [orderDate, setOrderDate] = useState<string>(todayYmd());
   const [paymentMode, setPaymentMode] = useState<"CASH" | "ONLINE">("CASH");
@@ -87,13 +103,28 @@ const OfflineSales: React.FC = () => {
   const patientNameRef = useRef<HTMLInputElement | null>(null);
   const patientPhoneRef = useRef<HTMLInputElement | null>(null);
   const patientEmailRef = useRef<HTMLInputElement | null>(null);
+  const genderRef = useRef<HTMLSelectElement | null>(null);
   const ageRef = useRef<HTMLInputElement | null>(null);
   const addressRef = useRef<HTMLInputElement | null>(null);
   const cityRef = useRef<HTMLInputElement | null>(null);
   const pincodeRef = useRef<HTMLInputElement | null>(null);
   const notesRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const [items, setItems] = useState<FormItem[]>([{ uid: uid(), itemType: "TEST", priceRowId: "", quantity: 1, sellingPrice: 0, costPrice: 0 }]);
+  const [items, setItems] = useState<FormItem[]>([
+    {
+      uid: uid(),
+      entryMode: "CATALOG",
+      itemType: "TEST",
+      priceRowId: "",
+      manualName: "",
+      manualCode: "",
+      quantity: 1,
+      sellingPrice: 0,
+      costPrice: 0,
+    },
+  ]);
+  const catalogInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const loadAll = async (page = ordersPage) => {
@@ -141,7 +172,15 @@ const OfflineSales: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (isExternalLab || !selectedLabId || !labs.length || !catalogLabs.length) return;
+    const labName = labs.find((l) => l.id === selectedLabId)?.name || "";
+    const matched = catalogLabs.find((x) => normalizeKey(x) === normalizeKey(labName));
+    if (matched && matched !== selectedPricingLab) setSelectedPricingLab(matched);
+  }, [isExternalLab, selectedLabId, labs, catalogLabs, selectedPricingLab]);
+
   const filteredRows = useMemo(() => {
+    if (!selectedPricingLab) return [];
     return catalogRows.filter((row) => {
       if (selectedPricingLab && row.lab.toLowerCase() !== selectedPricingLab.toLowerCase()) return false;
       return true;
@@ -155,21 +194,29 @@ const OfflineSales: React.FC = () => {
     };
   }, [filteredRows]);
 
-  const itemOptionNodesByType = useMemo(
-    () => ({
-      TEST: itemOptionsByType.TEST.map((r) => (
-        <option key={r.id} value={r.id}>
-          {r.name} ({money(r.rates.defaultSell)} / cost {money(r.rates.defaultCost)})
-        </option>
-      )),
-      PACKAGE: itemOptionsByType.PACKAGE.map((r) => (
-        <option key={r.id} value={r.id}>
-          {r.name} ({money(r.rates.defaultSell)} / cost {money(r.rates.defaultCost)})
-        </option>
-      )),
-    }),
-    [itemOptionsByType]
-  );
+  const indexedOptionsByType = useMemo(() => {
+    const mapRow = (r: OfflineCatalogRow) => ({
+      row: r,
+      label: optionLabelForRow(r),
+      searchKey: `${String(r.name || "").toLowerCase()} ${String(r.testId || r.packageId || "").toLowerCase()}`,
+    });
+    return {
+      TEST: itemOptionsByType.TEST.map(mapRow),
+      PACKAGE: itemOptionsByType.PACKAGE.map(mapRow),
+    };
+  }, [itemOptionsByType]);
+
+  const labelToRowIdByType = useMemo(() => {
+    const makeMap = (arr: { row: OfflineCatalogRow; label: string }[]) => {
+      const out: Record<string, string> = {};
+      for (const x of arr) out[x.label] = x.row.id;
+      return out;
+    };
+    return {
+      TEST: makeMap(indexedOptionsByType.TEST),
+      PACKAGE: makeMap(indexedOptionsByType.PACKAGE),
+    };
+  }, [indexedOptionsByType]);
 
   const computed = useMemo(() => {
     let revenue = 0;
@@ -199,21 +246,42 @@ const OfflineSales: React.FC = () => {
       priceRowId: row.id,
       sellingPrice: row.rates.defaultSell,
       costPrice: row.rates.defaultCost,
+      manualName: "",
+      manualCode: "",
     });
+    const el = catalogInputRefs.current[rowUid];
+    if (el) el.value = optionLabelForRow(row);
   };
 
   const addItem = () => {
-    setItems((prev) => [...prev, { uid: uid(), itemType: "TEST", priceRowId: "", quantity: 1, sellingPrice: 0, costPrice: 0 }]);
+    setItems((prev) => [
+      ...prev,
+      {
+        uid: uid(),
+        entryMode: "CATALOG",
+        itemType: "TEST",
+        priceRowId: "",
+        manualName: "",
+        manualCode: "",
+        quantity: 1,
+        sellingPrice: 0,
+        costPrice: 0,
+      },
+    ]);
   };
 
   const removeItem = (rowUid: string) => {
     setItems((prev) => (prev.length > 1 ? prev.filter((x) => x.uid !== rowUid) : prev));
+    delete catalogInputRefs.current[rowUid];
   };
 
   const submitOrder = async () => {
+    const externalLabName = (externalLabNameRef.current?.value || "").trim();
+    const externalLabAddress = (externalLabAddressRef.current?.value || "").trim();
     const patientName = (patientNameRef.current?.value || "").trim();
     const patientPhone = (patientPhoneRef.current?.value || "").trim();
     const patientEmail = (patientEmailRef.current?.value || "").trim();
+    const gender = (genderRef.current?.value || "").trim();
     const ageRaw = (ageRef.current?.value || "").trim();
     const address = (addressRef.current?.value || "").trim();
     const city = (cityRef.current?.value || "").trim();
@@ -221,25 +289,32 @@ const OfflineSales: React.FC = () => {
     const notes = (notesRef.current?.value || "").trim();
     const collectionTime = (collectionTimeRef.current?.value || "").trim();
 
-    if (!selectedLabId || !patientName || !address) {
-      alert("Please fill mandatory fields: Lab, Patient Name, Address");
+    if ((!selectedLabId && !isExternalLab) || !patientName || !address || (isExternalLab && !externalLabName)) {
+      alert("Please fill mandatory fields: Fulfillment Lab (or External Lab Name), Patient Name, Address");
       return;
     }
-    if (!items.length || items.some((x) => !x.priceRowId)) {
-      alert("Please select at least one valid test/package row");
+    const hasInvalidItems = items.some((x) => {
+      if (x.entryMode === "CATALOG") return !selectedPricingLab || !x.priceRowId;
+      return !x.manualName.trim();
+    });
+    if (!items.length || hasInvalidItems) {
+      alert("Please complete item rows. Catalog mode needs pricing source + selected item; Manual mode needs item name.");
       return;
     }
 
     setSubmitLoading(true);
     try {
       await createOfflineSalesOrder({
-        labId: selectedLabId,
+        labId: isExternalLab ? undefined : selectedLabId,
+        externalLabName: isExternalLab ? externalLabName : undefined,
+        externalLabAddress: isExternalLab ? externalLabAddress || undefined : undefined,
         lab: selectedPricingLab || undefined,
         orderDate: orderDate || undefined,
         collectionTime: collectionTime || undefined,
         patientName,
         patientPhone: patientPhone || undefined,
         patientEmail: patientEmail || undefined,
+        gender: gender || undefined,
         age: ageRaw ? Number(ageRaw) : undefined,
         address,
         city: city || undefined,
@@ -248,7 +323,13 @@ const OfflineSales: React.FC = () => {
         paymentMode,
         items: items.map((it) => ({
           itemType: it.itemType,
-          priceRowId: it.priceRowId,
+          priceRowId: it.entryMode === "CATALOG" ? it.priceRowId : undefined,
+          name: it.entryMode === "MANUAL" ? it.manualName.trim() : undefined,
+          ...(it.entryMode === "MANUAL" && it.manualCode.trim()
+            ? (it.itemType === "TEST"
+              ? { testId: it.manualCode.trim() }
+              : { packageId: it.manualCode.trim() })
+            : {}),
           quantity: Math.max(1, Number(it.quantity || 1)),
           sellingPrice: Number(it.sellingPrice || 0),
           costPrice: Number(it.costPrice || 0),
@@ -259,14 +340,31 @@ const OfflineSales: React.FC = () => {
       if (patientNameRef.current) patientNameRef.current.value = "";
       if (patientPhoneRef.current) patientPhoneRef.current.value = "";
       if (patientEmailRef.current) patientEmailRef.current.value = "";
+      if (genderRef.current) genderRef.current.value = "";
       if (ageRef.current) ageRef.current.value = "";
       if (addressRef.current) addressRef.current.value = "";
       if (cityRef.current) cityRef.current.value = "";
       if (pincodeRef.current) pincodeRef.current.value = "";
       if (notesRef.current) notesRef.current.value = "";
       if (collectionTimeRef.current) collectionTimeRef.current.value = "";
+      if (externalLabNameRef.current) externalLabNameRef.current.value = "";
+      if (externalLabAddressRef.current) externalLabAddressRef.current.value = "";
+      setIsExternalLab(false);
       setPaymentMode("CASH");
-      setItems([{ uid: uid(), itemType: "TEST", priceRowId: "", quantity: 1, sellingPrice: 0, costPrice: 0 }]);
+      setItems([
+        {
+          uid: uid(),
+          entryMode: "CATALOG",
+          itemType: "TEST",
+          priceRowId: "",
+          manualName: "",
+          manualCode: "",
+          quantity: 1,
+          sellingPrice: 0,
+          costPrice: 0,
+        },
+      ]);
+      catalogInputRefs.current = {};
 
       await loadAll();
     } catch (e) {
@@ -354,13 +452,27 @@ const OfflineSales: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs text-gray-600">Fulfillment Lab</label>
-                  <select className="mt-1 w-full border rounded-lg px-3 py-2" value={selectedLabId} onChange={(e) => setSelectedLabId(e.target.value)}>
+                  <select
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                    value={isExternalLab ? "__EXTERNAL__" : selectedLabId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "__EXTERNAL__") {
+                        setIsExternalLab(true);
+                        setSelectedLabId("");
+                        return;
+                      }
+                      setIsExternalLab(false);
+                      setSelectedLabId(value);
+                    }}
+                  >
                     <option value="">Select lab</option>
                     {labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    <option value="__EXTERNAL__">Other / Not Onboarded Lab</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-600">Pricing Lab Source</label>
+                  <label className="text-xs text-gray-600">Pricing Lab Source (for catalog items)</label>
                   <select className="mt-1 w-full border rounded-lg px-3 py-2" value={selectedPricingLab} onChange={(e) => setSelectedPricingLab(e.target.value)}>
                     <option value="">Select pricing lab</option>
                     {catalogLabs.map((l) => <option key={l} value={l}>{l}</option>)}
@@ -371,6 +483,23 @@ const OfflineSales: React.FC = () => {
                   <div className="text-sm font-semibold text-gray-800">No partner/referral logic applied</div>
                 </div>
               </div>
+
+              {isExternalLab ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    className="border rounded-lg px-3 py-2"
+                    placeholder="External Lab Name *"
+                    ref={externalLabNameRef}
+                    defaultValue=""
+                  />
+                  <input
+                    className="border rounded-lg px-3 py-2"
+                    placeholder="External Lab Address (optional)"
+                    ref={externalLabAddressRef}
+                    defaultValue=""
+                  />
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
@@ -418,10 +547,16 @@ const OfflineSales: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <input className="border rounded-lg px-3 py-2" placeholder="Patient Name *" ref={patientNameRef} defaultValue="" />
                 <input className="border rounded-lg px-3 py-2" placeholder="Mobile" ref={patientPhoneRef} defaultValue="" />
                 <input className="border rounded-lg px-3 py-2" placeholder="Email" ref={patientEmailRef} defaultValue="" />
+                <select className="border rounded-lg px-3 py-2" ref={genderRef} defaultValue="">
+                  <option value="">Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <input className="md:col-span-2 border rounded-lg px-3 py-2" placeholder="Address *" ref={addressRef} defaultValue="" />
@@ -438,16 +573,81 @@ const OfflineSales: React.FC = () => {
                 </div>
 
                 {items.map((it, idx) => {
+                  const rowOptions = indexedOptionsByType[it.itemType].slice(0, 250).map((x) => x.row);
+                  const currentRow = catalogRows.find((r) => r.id === it.priceRowId);
                   return (
                     <div key={it.uid} className="grid grid-cols-1 lg:grid-cols-12 gap-2 border rounded-lg p-2">
-                      <select className="lg:col-span-2 border rounded-lg px-2 py-2" value={it.itemType} onChange={(e) => updateItem(it.uid, { itemType: e.target.value as "TEST" | "PACKAGE", priceRowId: "" })}>
+                      <select
+                        className="lg:col-span-2 border rounded-lg px-2 py-2"
+                        value={it.entryMode}
+                        onChange={(e) => {
+                          const entryMode = e.target.value as "CATALOG" | "MANUAL";
+                          updateItem(it.uid, {
+                            entryMode,
+                            priceRowId: "",
+                            manualName: "",
+                            manualCode: "",
+                            sellingPrice: 0,
+                            costPrice: 0,
+                          });
+                          const el = catalogInputRefs.current[it.uid];
+                          if (el) el.value = "";
+                        }}
+                      >
+                        <option value="CATALOG">CATALOG</option>
+                        <option value="MANUAL">MANUAL</option>
+                      </select>
+                      <select
+                        className="lg:col-span-2 border rounded-lg px-2 py-2"
+                        value={it.itemType}
+                        onChange={(e) => {
+                          updateItem(it.uid, { itemType: e.target.value as "TEST" | "PACKAGE", priceRowId: "" });
+                          const el = catalogInputRefs.current[it.uid];
+                          if (el) el.value = "";
+                        }}
+                      >
                         <option value="TEST">TEST</option>
                         <option value="PACKAGE">PACKAGE</option>
                       </select>
-                      <select className="lg:col-span-4 border rounded-lg px-2 py-2" value={it.priceRowId} onChange={(e) => onPickCatalogRow(it.uid, e.target.value)}>
-                        <option value="">Select from catalog</option>
-                        {itemOptionNodesByType[it.itemType]}
-                      </select>
+                      {it.entryMode === "CATALOG" ? (
+                        <>
+                          <input
+                            className="lg:col-span-4 border rounded-lg px-2 py-2"
+                            placeholder={selectedPricingLab ? `Search ${it.itemType.toLowerCase()} and select from list` : "Select Pricing Lab Source first"}
+                            defaultValue={currentRow ? optionLabelForRow(currentRow) : ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const rowId = labelToRowIdByType[it.itemType][value];
+                              if (rowId) onPickCatalogRow(it.uid, rowId);
+                            }}
+                            ref={(el) => {
+                              catalogInputRefs.current[it.uid] = el;
+                            }}
+                            list={`catalog-${it.uid}`}
+                            disabled={!selectedPricingLab}
+                          />
+                          <datalist id={`catalog-${it.uid}`}>
+                            {rowOptions.map((r) => (
+                              <option key={r.id} value={optionLabelForRow(r)} />
+                            ))}
+                          </datalist>
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            className="lg:col-span-2 border rounded-lg px-2 py-2"
+                            placeholder="Manual item name *"
+                            value={it.manualName}
+                            onChange={(e) => updateItem(it.uid, { manualName: e.target.value, priceRowId: "" })}
+                          />
+                          <input
+                            className="lg:col-span-2 border rounded-lg px-2 py-2"
+                            placeholder={it.itemType === "TEST" ? "Manual test id (optional)" : "Manual package id (optional)"}
+                            value={it.manualCode}
+                            onChange={(e) => updateItem(it.uid, { manualCode: e.target.value })}
+                          />
+                        </>
+                      )}
                       <input className="lg:col-span-1 border rounded-lg px-2 py-2" type="number" min={1} value={it.quantity} onChange={(e) => updateItem(it.uid, { quantity: Math.max(1, Number(e.target.value || 1)) })} placeholder="Qty" />
                       <input className="lg:col-span-2 border rounded-lg px-2 py-2" type="number" value={it.costPrice} onChange={(e) => updateItem(it.uid, { costPrice: Number(e.target.value || 0) })} placeholder="Cost / unit" />
                       <input className="lg:col-span-2 border rounded-lg px-2 py-2" type="number" value={it.sellingPrice} onChange={(e) => updateItem(it.uid, { sellingPrice: Number(e.target.value || 0) })} placeholder="Sell / unit" />
@@ -517,25 +717,95 @@ const OfflineSales: React.FC = () => {
                     <th className="p-2">Order Status</th>
                     <th className="p-2">Payment Status</th>
                     <th className="p-2">Payment Mode</th>
+                    <th className="p-2">Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((o) => (
-                    <tr key={o.id} className="border-t">
-                      <td className="p-2 font-semibold">{o.orderId}</td>
-                      <td className="p-2">{new Date(o.createdAt).toLocaleString()}</td>
-                      <td className="p-2">{o.patientName}</td>
-                      <td className="p-2">{o.lab?.name || "-"}</td>
-                      <td className="p-2">{money(o.finance?.revenue || 0)}</td>
-                      <td className="p-2">{money(o.finance?.cost || 0)}</td>
-                      <td className="p-2">{money(o.finance?.netProfit || 0)}</td>
-                      <td className="p-2">{o.status || "-"}</td>
-                      <td className="p-2">{o.paymentStatus || "-"}</td>
-                      <td className="p-2">{(o.paymentMode || "CASH").toString().toUpperCase()}</td>
-                    </tr>
+                    <React.Fragment key={o.id}>
+                      <tr className="border-t">
+                        <td className="p-2 font-semibold">{o.orderId}</td>
+                        <td className="p-2">{new Date(o.createdAt).toLocaleString()}</td>
+                        <td className="p-2">{o.patientName}</td>
+                        <td className="p-2">{o.lab?.name || "-"}</td>
+                        <td className="p-2">{money(o.finance?.revenue || 0)}</td>
+                        <td className="p-2">{money(o.finance?.cost || 0)}</td>
+                        <td className="p-2">{money(o.finance?.netProfit || 0)}</td>
+                        <td className="p-2">{o.status || "-"}</td>
+                        <td className="p-2">{o.paymentStatus || "-"}</td>
+                        <td className="p-2">{(o.paymentMode || "CASH").toString().toUpperCase()}</td>
+                        <td className="p-2">
+                          <button
+                            className="rounded border px-2 py-1 text-xs hover:bg-red-50"
+                            onClick={() => setExpandedOrderId((prev) => (prev === o.id ? null : o.id))}
+                          >
+                            {expandedOrderId === o.id ? "Hide" : "View"}
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedOrderId === o.id ? (
+                        <tr className="border-t bg-red-50/30">
+                          <td className="p-3" colSpan={11}>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-700">
+                              <div className="rounded border bg-white p-2">
+                                <div className="font-semibold mb-1">Patient</div>
+                                <div>Phone: {o.patientPhone || "-"}</div>
+                                <div>Email: {o.patientEmail || "-"}</div>
+                                <div>Gender/Age: {o.gender || "-"} / {o.age ?? "-"}</div>
+                                <div>Address: {[o.address, o.city, o.pincode].filter(Boolean).join(", ") || "-"}</div>
+                              </div>
+                              <div className="rounded border bg-white p-2">
+                                <div className="font-semibold mb-1">Order Meta</div>
+                                <div>Collection Time: {o.pickupWindow || "-"}</div>
+                                <div>Payment Method: {o.paymentMethod || "-"}</div>
+                                <div>Pricing Source: {String((o.meta as { offlineOrder?: { labPriceSource?: string } })?.offlineOrder?.labPriceSource || "-")}</div>
+                                <div>Notes: {o.instructions || String((o.meta as { offlineOrder?: { notes?: string } })?.offlineOrder?.notes || "-")}</div>
+                              </div>
+                              <div className="rounded border bg-white p-2">
+                                <div className="font-semibold mb-1">Finance</div>
+                                <div>Revenue: {money(o.finance?.revenue || 0)}</div>
+                                <div>Cost: {money(o.finance?.cost || 0)}</div>
+                                <div>Gross Profit: {money(o.finance?.grossProfit || 0)}</div>
+                                <div>Referral Impact: {money(o.finance?.referralImpact || 0)}</div>
+                                <div>Net Profit: {money(o.finance?.netProfit || 0)}</div>
+                              </div>
+                              <div className="md:col-span-3 rounded border bg-white p-2">
+                                <div className="font-semibold mb-1">Items</div>
+                                {o.items?.length ? (
+                                  <div className="overflow-auto">
+                                    <table className="min-w-full text-xs">
+                                      <thead>
+                                        <tr className="text-left">
+                                          <th className="pr-3">Type</th>
+                                          <th className="pr-3">Name</th>
+                                          <th className="pr-3">Price</th>
+                                          <th className="pr-3">Partner Margin</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {o.items.map((it) => (
+                                          <tr key={it.id}>
+                                            <td className="pr-3">{it.type}</td>
+                                            <td className="pr-3">{it.name}</td>
+                                            <td className="pr-3">{money(it.price || 0)}</td>
+                                            <td className="pr-3">{money(it.partnerMargin || 0)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <div>{o.itemSummary || "-"}</div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </React.Fragment>
                   ))}
                   {!orders.length ? (
-                    <tr><td className="p-3 text-gray-500" colSpan={10}>No offline orders found for this range.</td></tr>
+                    <tr><td className="p-3 text-gray-500" colSpan={11}>No offline orders found for this range.</td></tr>
                   ) : null}
                 </tbody>
               </table>
@@ -569,4 +839,3 @@ const OfflineSales: React.FC = () => {
 };
 
 export default OfflineSales;
-

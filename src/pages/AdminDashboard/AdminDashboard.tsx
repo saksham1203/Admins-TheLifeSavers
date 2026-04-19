@@ -38,6 +38,7 @@ import { getCities, getDistricts, getStates } from "../../Components/indiaData";
 const numberWithCommas = (n: number) => n.toLocaleString("en-IN");
 const percent = (n: number) => `${Math.round(n)}%`;
 const COLORS = ["#EF4444", "#FB923C", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6"];
+const shortLabel = (value: string, max = 28) => (value.length > max ? `${value.slice(0, max - 1)}...` : value);
 
 
 const pill = (text: string, cls = "bg-red-100 text-red-700 border-red-200") => (
@@ -122,7 +123,6 @@ const AdminDashboard: React.FC = () => {
   } = useAdminDashboard();
   const [selectedLabDetails, setSelectedLabDetails] = useState<DashboardLab | null>(null);
   const [selectedGuestDetails, setSelectedGuestDetails] = useState<DashboardGuest | null>(null);
-  const [totalsView, setTotalsView] = useState<"all" | "range">("all");
   const usersNameInputRef = useRef<HTMLInputElement | null>(null);
   const [usersBloodGroupDraft, setUsersBloodGroupDraft] = useState("");
   const [usersStateDraft, setUsersStateDraft] = useState("");
@@ -138,35 +138,21 @@ const AdminDashboard: React.FC = () => {
   );
 
 
-  const kpis = useMemo(
+    const kpis = useMemo(
     () => [
       {
         id: "users",
         title: "Total Users",
-        value: numberWithCommas(
-          totalsView === "range"
-            ? (usersPagination.totalFiltered ?? usersPagination.total ?? 0)
-            : (overview.totalUsers || 0)
-        ),
-        hint:
-          totalsView === "range"
-            ? `Users in selected range (${fromDate} to ${toDate})`
-            : `${overview.newUsers7d || 0} new (7d)`,
+        value: numberWithCommas(usersPagination.totalFiltered ?? usersPagination.total ?? 0),
+        hint: `Users in selected range (${fromDate} to ${toDate})`,
         spark: usersTrend.map((p) => ({ date: p.date, v: p.users ?? 0 })),
         icon: <FaUsers className="text-red-600" />,
       },
       {
         id: "orders",
         title: "Total Orders",
-        value: numberWithCommas(
-          totalsView === "range"
-            ? (overview.selectedRangeOrders || 0)
-            : (overview.totalOrders || 0)
-        ),
-        hint:
-          totalsView === "range"
-            ? `Orders in selected range (${fromDate} to ${toDate})`
-            : `${overview.testsBookedToday || 0} today`,
+        value: numberWithCommas(overview.selectedRangeOrders || 0),
+        hint: `Orders in selected range (${fromDate} to ${toDate})`,
         spark: ordersTrend.map((p) => ({ date: p.date, v: p.orders ?? 0 })),
         icon: <FaClipboardList className="text-red-600" />,
       },
@@ -174,7 +160,7 @@ const AdminDashboard: React.FC = () => {
         id: "revenue",
         title: "Online Gross Revenue",
         value: `Rs${numberWithCommas(overview.selectedRangeOnlineRevenue || 0)}`,
-        hint: `Gross sales (before deductions) • ${fromDate} to ${toDate}`,
+        hint: `Gross sales (before deductions) - ${fromDate} to ${toDate}`,
         spark: revenueTrend.map((p) => ({ date: p.date, v: p.revenue ?? 0 })),
         icon: <FaRupeeSign className="text-red-600" />,
       },
@@ -182,7 +168,7 @@ const AdminDashboard: React.FC = () => {
         id: "offline_revenue",
         title: "Offline Gross Revenue",
         value: `Rs${numberWithCommas(overview.selectedRangeOfflineRevenue || 0)}`,
-        hint: `Gross sales (before deductions) • ${fromDate} to ${toDate}`,
+        hint: `Gross sales (before deductions) - ${fromDate} to ${toDate}`,
         spark: revenueProfitSplitTrend.map((p) => ({ date: p.date, v: p.offlineRevenue ?? 0 })),
         icon: <FaRupeeSign className="text-red-600" />,
       },
@@ -190,20 +176,42 @@ const AdminDashboard: React.FC = () => {
         id: "total_revenue",
         title: "Total Gross Revenue",
         value: `Rs${numberWithCommas(overview.selectedRangeCombinedRevenue || 0)}`,
-        hint: `Online + Offline gross sales • ${fromDate} to ${toDate}`,
+        hint: `Online + Offline gross sales - ${fromDate} to ${toDate}`,
         spark: revenueProfitSplitTrend.map((p) => ({ date: p.date, v: p.combinedRevenue ?? 0 })),
         icon: <FaRupeeSign className="text-red-600" />,
       },
       {
-        id: "profit",
-        title: "Profit / Loss",
+        id: "online_profit",
+        title: "Online Profit / Loss",
+        value: `Rs${numberWithCommas(Math.abs(overview.selectedRangeOnlineProfit || 0))}`,
+        hint:
+          (overview.selectedRangeOnlineProfit || 0) >= 0
+            ? "Online net after deductions"
+            : "Online net loss after deductions",
+        spark: revenueProfitSplitTrend.map((p) => ({ date: p.date, v: p.onlineProfit ?? 0 })),
+        icon: <FaRupeeSign className="text-red-600" />,
+      },
+      {
+        id: "offline_profit",
+        title: "Offline Profit / Loss",
+        value: `Rs${numberWithCommas(Math.abs(overview.selectedRangeOfflineProfit || 0))}`,
+        hint:
+          (overview.selectedRangeOfflineProfit || 0) >= 0
+            ? "Offline net after deductions"
+            : "Offline net loss after deductions",
+        spark: revenueProfitSplitTrend.map((p) => ({ date: p.date, v: p.offlineProfit ?? 0 })),
+        icon: <FaRupeeSign className="text-red-600" />,
+      },
+      {
+        id: "total_profit",
+        title: "Total Profit / Loss",
         value: `Rs${numberWithCommas(Math.abs(overview.selectedRangeCombinedProfit || 0))}`,
         hint:
           (overview.selectedRangeCombinedProfit || 0) >= 0
             ? "Net after cost + commissions + adjustments"
             : "Net loss after cost + commissions + adjustments",
         spark: revenueProfitSplitTrend.map((p) => ({ date: p.date, v: p.combinedProfit ?? 0 })),
-        icon: <FaRupeeSign className="text-red-600" />, 
+        icon: <FaRupeeSign className="text-red-600" />,
       },
       {
         id: "requests",
@@ -216,7 +224,6 @@ const AdminDashboard: React.FC = () => {
     ],
     [
       overview,
-      totalsView,
       usersPagination.total,
       usersPagination.totalFiltered,
       usersTrend,
@@ -345,22 +352,7 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="rounded-full border bg-white p-1 flex items-center gap-1">
-                <button
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${totalsView === "all" ? "bg-red-600 text-white" : "text-gray-700 hover:bg-red-50"}`}
-                  onClick={() => setTotalsView("all")}
-                >
-                  Users/Orders: All
-                </button>
-                <button
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${totalsView === "range" ? "bg-red-600 text-white" : "text-gray-700 hover:bg-red-50"}`}
-                  onClick={() => setTotalsView("range")}
-                >
-                  Users/Orders: Range
-                </button>
-              </div>
-              <button onClick={refresh} className="rounded-full bg-white border px-3 py-2 text-sm font-semibold hover:bg-red-50 flex items-center gap-2">
+            <div className="flex items-center gap-2"><button onClick={refresh} className="rounded-full bg-white border px-3 py-2 text-sm font-semibold hover:bg-red-50 flex items-center gap-2">
                 <FaSyncAlt /> <span className="hidden sm:inline">Refresh</span>
               </button>
             </div>
@@ -598,7 +590,27 @@ const AdminDashboard: React.FC = () => {
               <div className="w-full h-56 sm:h-64 md:h-64 lg:h-60"><ResponsiveContainer width="100%" height="100%"><BarChart data={bookingsByLab} layout="vertical"><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" /><YAxis dataKey="lab" type="category" width={150} /><Tooltip /><Bar dataKey="bookings" fill="#3B82F6" barSize={12} /></BarChart></ResponsiveContainer></div>
             </SectionCard>
             <SectionCard title={<span className="flex items-center gap-2"><FaRegStar /> Top Tests</span>} right={<div className="text-xs text-gray-500">This period</div>}>
-              <div className="w-full h-56 sm:h-64 md:h-64 lg:h-60"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={topTests} dataKey="bookings" nameKey="test" outerRadius={80} label>{topTests.map((_entry, idx) => (<Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />))}</Pie><Legend verticalAlign="bottom" height={36} /><Tooltip /></PieChart></ResponsiveContainer></div>
+              <div className="w-full h-72 sm:h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={topTests} dataKey="bookings" nameKey="test" outerRadius="62%" labelLine={false}>
+                      {topTests.map((_entry, idx) => (
+                        <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
+                {topTests.map((entry, idx) => (
+                  <div key={`${entry.test}-${idx}`} className="flex items-center gap-2 text-gray-600 min-w-0">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                    <span className="truncate" title={entry.test}>{shortLabel(entry.test, 34)}</span>
+                    <span className="ml-auto font-semibold text-gray-700 shrink-0">{entry.bookings}</span>
+                  </div>
+                ))}
+              </div>
             </SectionCard>
           </div>
 
@@ -688,22 +700,7 @@ const AdminDashboard: React.FC = () => {
                   placeholder="Search by name"
                   className="w-full sm:max-w-md rounded-lg border px-3 py-2 text-sm"
                 />
-                <div className="flex items-center gap-2">
-                  <div className="rounded-full border bg-white p-1 flex items-center gap-1">
-                    <button
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${usersScope === "all" ? "bg-red-600 text-white" : "text-gray-700 hover:bg-red-50"}`}
-                      onClick={() => { setUsersPage(1); setUsersScope("all"); }}
-                    >
-                      All Users
-                    </button>
-                    <button
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${usersScope === "range" ? "bg-red-600 text-white" : "text-gray-700 hover:bg-red-50"}`}
-                      onClick={() => { setUsersPage(1); setUsersScope("range"); }}
-                    >
-                      In Date Range
-                    </button>
-                  </div>
-                  <div className="text-xs text-gray-500">Page {usersPagination.page}/{usersPagination.totalPages}</div>
+                <div className="flex items-center gap-2"><div className="text-xs text-gray-500">Page {usersPagination.page}/{usersPagination.totalPages}</div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
