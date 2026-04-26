@@ -14,14 +14,17 @@ import {
 } from "recharts";
 import {
   createOfflineSalesOrder,
+  deleteOfflineSalesOrder,
   downloadOfflineSalesOrdersReport,
   fetchOfflineSalesCatalog,
+  fetchOfflineSalesLabAdmins,
   fetchOfflineSalesLabs,
   fetchOfflineSalesOrders,
   fetchOfflineSalesSummary,
   fetchOfflineSalesTrend,
   type OfflineCatalogRow,
   type OfflineSalesLab,
+  type OfflineSalesLabAdmin,
   type SalesOrderHistoryRow,
 } from "../../services/offlineSales.service";
 
@@ -78,6 +81,7 @@ const OfflineSales: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const [labs, setLabs] = useState<OfflineSalesLab[]>([]);
+  const [labAdmins, setLabAdmins] = useState<OfflineSalesLabAdmin[]>([]);
   const [catalogRows, setCatalogRows] = useState<OfflineCatalogRow[]>([]);
   const [catalogLabs, setCatalogLabs] = useState<string[]>([]);
 
@@ -94,6 +98,7 @@ const OfflineSales: React.FC = () => {
 
   const [selectedLabId, setSelectedLabId] = useState<string>("");
   const [isExternalLab, setIsExternalLab] = useState(false);
+  const [selectedAssignedLabAdminId, setSelectedAssignedLabAdminId] = useState<string>("");
   const externalLabNameRef = useRef<HTMLInputElement | null>(null);
   const externalLabAddressRef = useRef<HTMLInputElement | null>(null);
   const [selectedPricingLab, setSelectedPricingLab] = useState<string>("");
@@ -126,12 +131,14 @@ const OfflineSales: React.FC = () => {
   const catalogInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [deleteLoadingOrderId, setDeleteLoadingOrderId] = useState<string | null>(null);
 
   const loadAll = async (page = ordersPage) => {
     setLoading(true);
     try {
-      const [labsResp, catalogResp, summaryResp, trendResp, ordersResp] = await Promise.all([
+      const [labsResp, labAdminsResp, catalogResp, summaryResp, trendResp, ordersResp] = await Promise.all([
         fetchOfflineSalesLabs(),
+        fetchOfflineSalesLabAdmins(),
         fetchOfflineSalesCatalog({ limit: 400 }),
         fetchOfflineSalesSummary({ from: fromDate, to: toDate }),
         fetchOfflineSalesTrend({ from: fromDate, to: toDate }),
@@ -145,6 +152,7 @@ const OfflineSales: React.FC = () => {
       ]);
 
       setLabs(labsResp.labs || []);
+      setLabAdmins(labAdminsResp.admins || []);
       setCatalogRows(catalogResp.rows || []);
       setCatalogLabs(catalogResp.filters?.labs || []);
       setSummary(summaryResp.summary || null);
@@ -161,9 +169,31 @@ const OfflineSales: React.FC = () => {
       setOrdersPage(page);
 
       if (!selectedLabId && (labsResp.labs || []).length) setSelectedLabId(labsResp.labs[0].id);
+      if (!selectedAssignedLabAdminId && (labAdminsResp.admins || []).length) {
+        setSelectedAssignedLabAdminId(labAdminsResp.admins[0].id);
+      }
       if (!selectedPricingLab && (catalogResp.filters?.labs || []).length) setSelectedPricingLab(catalogResp.filters.labs[0]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteOrder = async (order: SalesOrderHistoryRow) => {
+    const ok = window.confirm(`Delete order ${order.orderId}? This will archive and remove it from live history.`);
+    if (!ok) return;
+
+    const reason = window.prompt("Reason for delete (optional):", "Deleted by super admin") || undefined;
+    setDeleteLoadingOrderId(order.id);
+    try {
+      await deleteOfflineSalesOrder(order.id, reason);
+      if (expandedOrderId === order.id) setExpandedOrderId(null);
+      await loadAll(ordersPage);
+      alert("Order deleted successfully");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to delete order";
+      alert(msg);
+    } finally {
+      setDeleteLoadingOrderId(null);
     }
   };
 
@@ -293,6 +323,10 @@ const OfflineSales: React.FC = () => {
       alert("Please fill mandatory fields: Fulfillment Lab (or External Lab Name), Patient Name, Address");
       return;
     }
+    if (isExternalLab && !selectedAssignedLabAdminId) {
+      alert("Please select assigned lab admin for external lab orders");
+      return;
+    }
     const hasInvalidItems = items.some((x) => {
       if (x.entryMode === "CATALOG") return !selectedPricingLab || !x.priceRowId;
       return !x.manualName.trim();
@@ -308,6 +342,7 @@ const OfflineSales: React.FC = () => {
         labId: isExternalLab ? undefined : selectedLabId,
         externalLabName: isExternalLab ? externalLabName : undefined,
         externalLabAddress: isExternalLab ? externalLabAddress || undefined : undefined,
+        assignedLabAdminId: isExternalLab ? selectedAssignedLabAdminId || undefined : undefined,
         lab: selectedPricingLab || undefined,
         orderDate: orderDate || undefined,
         collectionTime: collectionTime || undefined,
@@ -485,7 +520,7 @@ const OfflineSales: React.FC = () => {
               </div>
 
               {isExternalLab ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <input
                     className="border rounded-lg px-3 py-2"
                     placeholder="External Lab Name *"
@@ -498,6 +533,18 @@ const OfflineSales: React.FC = () => {
                     ref={externalLabAddressRef}
                     defaultValue=""
                   />
+                  <select
+                    className="border rounded-lg px-3 py-2"
+                    value={selectedAssignedLabAdminId}
+                    onChange={(e) => setSelectedAssignedLabAdminId(e.target.value)}
+                  >
+                    <option value="">Assign Lab Admin *</option>
+                    {labAdmins.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({a.lab?.name || "No Lab"})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ) : null}
 
@@ -718,6 +765,7 @@ const OfflineSales: React.FC = () => {
                     <th className="p-2">Payment Status</th>
                     <th className="p-2">Payment Mode</th>
                     <th className="p-2">Details</th>
+                    <th className="p-2">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -742,10 +790,19 @@ const OfflineSales: React.FC = () => {
                             {expandedOrderId === o.id ? "Hide" : "View"}
                           </button>
                         </td>
+                        <td className="p-2">
+                          <button
+                            className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            onClick={() => deleteOrder(o)}
+                            disabled={deleteLoadingOrderId === o.id}
+                          >
+                            {deleteLoadingOrderId === o.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </td>
                       </tr>
                       {expandedOrderId === o.id ? (
                         <tr className="border-t bg-red-50/30">
-                          <td className="p-3" colSpan={11}>
+                          <td className="p-3" colSpan={12}>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-700">
                               <div className="rounded border bg-white p-2">
                                 <div className="font-semibold mb-1">Patient</div>
@@ -759,6 +816,8 @@ const OfflineSales: React.FC = () => {
                                 <div>Collection Time: {o.pickupWindow || "-"}</div>
                                 <div>Payment Method: {o.paymentMethod || "-"}</div>
                                 <div>Pricing Source: {String((o.meta as { offlineOrder?: { labPriceSource?: string } })?.offlineOrder?.labPriceSource || "-")}</div>
+                                <div>External Lab: {String((o.meta as { offlineOrder?: { externalLabName?: string } })?.offlineOrder?.externalLabName || "-")}</div>
+                                <div>Assigned Lab Admin: {String((o.meta as { offlineOrder?: { assignedLabAdminName?: string } })?.offlineOrder?.assignedLabAdminName || "-")}</div>
                                 <div>Notes: {o.instructions || String((o.meta as { offlineOrder?: { notes?: string } })?.offlineOrder?.notes || "-")}</div>
                               </div>
                               <div className="rounded border bg-white p-2">
@@ -805,7 +864,7 @@ const OfflineSales: React.FC = () => {
                     </React.Fragment>
                   ))}
                   {!orders.length ? (
-                    <tr><td className="p-3 text-gray-500" colSpan={11}>No offline orders found for this range.</td></tr>
+                    <tr><td className="p-3 text-gray-500" colSpan={12}>No offline orders found for this range.</td></tr>
                   ) : null}
                 </tbody>
               </table>

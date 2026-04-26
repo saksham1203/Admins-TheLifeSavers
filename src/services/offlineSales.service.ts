@@ -41,6 +41,21 @@ export type OfflineSalesLab = {
   address: string;
 };
 
+export type OfflineSalesLabAdmin = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  isActive: boolean;
+  primaryLabId: string | null;
+  labIds: string[];
+  lab: {
+    id: string;
+    name: string;
+    isActive: boolean;
+  } | null;
+};
+
 export type OfflineOrderItemInput = {
   itemType: "TEST" | "PACKAGE";
   priceRowId?: string;
@@ -56,6 +71,7 @@ export type CreateOfflineOrderInput = {
   labId?: string;
   externalLabName?: string;
   externalLabAddress?: string;
+  assignedLabAdminId?: string;
   lab?: string;
   partnerType?: string;
   orderDate?: string;
@@ -239,12 +255,31 @@ export async function fetchOfflineSalesLabs() {
   return apiFetch<{ success: boolean; labs: OfflineSalesLab[] }>(`${BASE}/superadmins/offline-sales/labs`);
 }
 
+export async function fetchOfflineSalesLabAdmins(params?: { search?: string }) {
+  const qp = new URLSearchParams();
+  if (params?.search) qp.set("search", params.search);
+  const suffix = qp.toString() ? `?${qp.toString()}` : "";
+  return apiFetch<{ success: boolean; admins: OfflineSalesLabAdmin[]; count: number }>(
+    `${BASE}/superadmins/offline-sales/lab-admins${suffix}`
+  );
+}
+
 export async function createOfflineSalesOrder(payload: CreateOfflineOrderInput) {
   return apiFetch<{ success: boolean; message: string; orderId: string }>(
     `${BASE}/superadmins/offline-sales/orders`,
     {
       method: "POST",
       body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function deleteOfflineSalesOrder(orderIdOrId: string, reason?: string) {
+  return apiFetch<{ success: boolean; message: string; archiveId: string; orderId: string }>(
+    `${BASE}/superadmins/offline-sales/orders/${encodeURIComponent(orderIdOrId)}`,
+    {
+      method: "DELETE",
+      body: JSON.stringify(reason ? { reason } : {}),
     }
   );
 }
