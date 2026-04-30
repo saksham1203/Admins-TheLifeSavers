@@ -37,6 +37,8 @@ const PartnersPricingLists = lazy(() => import("./pages/PartnersPricingLists/Par
 const SuperAdminUserOnboarding = lazy(() => import("./pages/AdminDashboard/SuperAdminUserOnboarding"))
 const OfflineSales = lazy(() => import("./pages/OfflineSales/OfflineSales"))
 const OnlineSalesHistory = lazy(() => import("./pages/OnlineSalesHistory/OnlineSalesHistory"))
+const OfficeExpenses = lazy(() => import("./pages/OfficeExpenses/OfficeExpenses"))
+const EmployeeManagement = lazy(() => import("./pages/EmployeeManagement/EmployeeManagement"))
 
 const ReportGenerator = lazy(() => import("./pages/ReportGenerator/ReportGenerator"))
 
@@ -74,6 +76,8 @@ const PATHS = {
   USERSONBOARDING: "/users-onboarding",
   OFFLINE_SALES: "/offline-sales",
   ONLINE_SALES_HISTORY: "/online-sales-history",
+  OFFICE_EXPENSES: "/office-expenses",
+  EMPLOYEE_MANAGEMENT: "/employee-management",
 };
 
 const App = () => {
@@ -253,6 +257,34 @@ const App = () => {
           ],
         },
         {
+          path: PATHS.OFFICE_EXPENSES,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.OFFICE_EXPENSES,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <OfficeExpenses />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
+          path: PATHS.EMPLOYEE_MANAGEMENT,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.EMPLOYEE_MANAGEMENT,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <EmployeeManagement />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
           path: PATHS.ONLINE_SALES_HISTORY,
           element: <ProtectedRoute />,
           children: [
@@ -352,3 +384,5 @@ const App = () => {
 };
 
 export default App;
+
+

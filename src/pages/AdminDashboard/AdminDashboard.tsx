@@ -373,6 +373,8 @@ const AdminDashboard: React.FC = () => {
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/partnerspricinglists")}>Partners Pricing Lists</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/offline-sales")}>Offline Sales</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/online-sales-history")}>Online History</button>
+              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/office-expenses")}>Office Expenses</button>
+              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/employee-management")}>Employee Management</button>
               <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/report-generator")}>Report Generator</button>
               <button className="w-full sm:w-auto rounded-lg bg-white border px-4 py-2 text-sm font-semibold hover:bg-red-50" onClick={() => navigate("/reports")}>Go to Reports</button>
 
@@ -969,6 +971,9 @@ const AdminDashboard: React.FC = () => {
 };
 
 export default AdminDashboard;
+
+
+
 
 
 
