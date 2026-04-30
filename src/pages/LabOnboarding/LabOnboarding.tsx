@@ -126,6 +126,12 @@ async function patchPackageToApi(labId: string, packageEntryId: string, payload:
   return res.data;
 }
 
+async function deletePackageFromApi(labId: string, packageEntryId: string) {
+  const client = await axiosWithAuth();
+  const res = await client.delete(`/labs/${labId}/packages/${packageEntryId}`);
+  return res.data;
+}
+
 // Post test to /labs/:id/tests
 async function postTestToApi(labId: string, payload: any) {
   const client = await axiosWithAuth();
@@ -136,6 +142,12 @@ async function postTestToApi(labId: string, payload: any) {
 async function patchTestToApi(labId: string, testEntryId: string, payload: any) {
   const client = await axiosWithAuth();
   const res = await client.patch(`/labs/${labId}/tests/${testEntryId}`, payload);
+  return res.data;
+}
+
+async function deleteTestFromApi(labId: string, testEntryId: string) {
+  const client = await axiosWithAuth();
+  const res = await client.delete(`/labs/${labId}/tests/${testEntryId}`);
   return res.data;
 }
 
@@ -154,6 +166,8 @@ const LabOnboarding: React.FC = () => {
   const [isPostingTest, setIsPostingTest] = useState(false);
   const [isUpdatingLab, setIsUpdatingLab] = useState<string | null>(null);
   const [isDeletingLab, setIsDeletingLab] = useState<string | null>(null);
+  const [isDeletingPackageId, setIsDeletingPackageId] = useState<string | null>(null);
+  const [isDeletingTestId, setIsDeletingTestId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"packages" | "tests">("packages");
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
   const [editingTestId, setEditingTestId] = useState<string | null>(null);
@@ -671,6 +685,76 @@ const LabOnboarding: React.FC = () => {
       toast.error(err?.response?.data?.message || err?.message || "Failed to delete lab");
     } finally {
       setIsDeletingLab(null);
+    }
+  }
+
+  async function handleDeletePackage(labId: string, packageEntryId: string, packageName?: string) {
+    const ok = window.confirm(`Delete package "${packageName || packageEntryId}"?`);
+    if (!ok) return;
+
+    try {
+      setIsDeletingPackageId(packageEntryId);
+      const res = await deletePackageFromApi(labId, packageEntryId);
+      if (res?.success) {
+        setLabs((prev) =>
+          prev.map((l) =>
+            l.id !== labId ? l : { ...l, packages: (l.packages || []).filter((p) => p.id !== packageEntryId) }
+          )
+        );
+        if (activeLabForDetails?.id === labId) {
+          setActiveLabForDetails((prev) =>
+            prev ? { ...prev, packages: (prev.packages || []).filter((p) => p.id !== packageEntryId) } : prev
+          );
+        }
+        if (activeLabForPackage?.id === labId) {
+          setActiveLabForPackage((prev) =>
+            prev ? { ...prev, packages: (prev.packages || []).filter((p) => p.id !== packageEntryId) } : prev
+          );
+        }
+        if (editingPackageId === packageEntryId) setEditingPackageId(null);
+        toast.success("Package deleted");
+      } else {
+        toast.error(res?.message || "Failed to delete package");
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to delete package");
+    } finally {
+      setIsDeletingPackageId(null);
+    }
+  }
+
+  async function handleDeleteTest(labId: string, testEntryId: string, testName?: string) {
+    const ok = window.confirm(`Delete test "${testName || testEntryId}"?`);
+    if (!ok) return;
+
+    try {
+      setIsDeletingTestId(testEntryId);
+      const res = await deleteTestFromApi(labId, testEntryId);
+      if (res?.success) {
+        setLabs((prev) =>
+          prev.map((l) =>
+            l.id !== labId ? l : { ...l, tests: (l.tests || []).filter((t) => t.id !== testEntryId) }
+          )
+        );
+        if (activeLabForDetails?.id === labId) {
+          setActiveLabForDetails((prev) =>
+            prev ? { ...prev, tests: (prev.tests || []).filter((t) => t.id !== testEntryId) } : prev
+          );
+        }
+        if (activeLabForPackage?.id === labId) {
+          setActiveLabForPackage((prev) =>
+            prev ? { ...prev, tests: (prev.tests || []).filter((t) => t.id !== testEntryId) } : prev
+          );
+        }
+        if (editingTestId === testEntryId) setEditingTestId(null);
+        toast.success("Test deleted");
+      } else {
+        toast.error(res?.message || "Failed to delete test");
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to delete test");
+    } finally {
+      setIsDeletingTestId(null);
     }
   }
 
@@ -1260,12 +1344,21 @@ const LabOnboarding: React.FC = () => {
                               <div className="text-right shrink-0">
                                 <div className="text-sm font-semibold text-gray-800">Rs{pkg.discounted ?? "-"}</div>
                                 <div className="text-xs line-through text-gray-400">Rs{pkg.mrp ?? "-"}</div>
-                                <button
-                                  className="mt-2 text-xs px-3 py-1.5 rounded-lg border border-gray-200 font-semibold hover:bg-gray-50 transition"
-                                  onClick={() => beginEditPackage(activeLabForDetails, pkg)}
-                                >
-                                  Edit
-                                </button>
+                                <div className="mt-2 flex items-center justify-end gap-2">
+                                  <button
+                                    className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 font-semibold hover:bg-gray-50 transition"
+                                    onClick={() => beginEditPackage(activeLabForDetails, pkg)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 font-semibold hover:bg-red-50 transition disabled:opacity-50"
+                                    onClick={() => handleDeletePackage(activeLabForDetails.id, pkg.id, pkg.name)}
+                                    disabled={isDeletingPackageId === pkg.id}
+                                  >
+                                    {isDeletingPackageId === pkg.id ? "Deleting..." : "Delete"}
+                                  </button>
+                                </div>
                               </div>
                             </div>
 
@@ -1308,12 +1401,21 @@ const LabOnboarding: React.FC = () => {
                               <div className="text-sm font-semibold text-gray-800">Rs{t.discounted ?? "-"}</div>
                               <div className="text-xs line-through text-gray-400">Rs{t.mrp ?? "-"}</div>
                               <div className="text-xs text-gray-500 mt-1">Params: {t.parameters ?? "-"}</div>
-                              <button
-                                className="mt-2 text-xs px-3 py-1.5 rounded-lg border border-gray-200 font-semibold hover:bg-gray-50 transition"
-                                onClick={() => beginEditTest(activeLabForDetails, t)}
-                              >
-                                Edit
-                              </button>
+                              <div className="mt-2 flex items-center justify-end gap-2">
+                                <button
+                                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 font-semibold hover:bg-gray-50 transition"
+                                  onClick={() => beginEditTest(activeLabForDetails, t)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 font-semibold hover:bg-red-50 transition disabled:opacity-50"
+                                  onClick={() => handleDeleteTest(activeLabForDetails.id, t.id, t.name)}
+                                  disabled={isDeletingTestId === t.id}
+                                >
+                                  {isDeletingTestId === t.id ? "Deleting..." : "Delete"}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
