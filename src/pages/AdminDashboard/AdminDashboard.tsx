@@ -10,6 +10,17 @@ import {
   FaSyncAlt,
   FaRegStar,
   FaBolt,
+  FaFileAlt,
+  FaFileInvoiceDollar,
+  FaGlobe,
+  FaHandshake,
+  FaHospital,
+  FaMoneyBillWave,
+  FaSyringe,
+  FaTags,
+  FaUser,
+  FaUsersCog,
+  FaUserShield,
 } from "react-icons/fa";
 import {
   LineChart,
@@ -316,7 +327,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex items-start justify-center p-3 sm:p-6" style={{ paddingTop: "4rem", paddingBottom: "4rem" }}>
       <div className="bg-white/90 backdrop-blur rounded-2xl shadow-xl w-full max-w-7xl overflow-hidden relative ring-1 ring-red-100">
-        <div className="bg-gradient-to-r from-red-600 via-red-500 to-red-400 text-white py-5 px-4 sm:px-6 shadow-md">
+        <div className="bg-gradient-to-r from-red-600 via-red-600 to-red-600 text-white py-5 px-4 sm:px-6 shadow-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button onClick={() => navigate(-1)} className="p-2 bg-red-600 rounded-full shadow-md hover:bg-red-700 transition" aria-label="Back">
@@ -324,7 +335,7 @@ const AdminDashboard: React.FC = () => {
               </button>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold">Admin Dashboard</h1>
-                <div className="text-sm text-white/90 mt-1">LifeSavers.in - Lab Test Booking</div>
+                <div className="text-sm text-white/90 mt-1">The Life Savers </div>
               </div>
             </div>
 
@@ -362,21 +373,88 @@ const AdminDashboard: React.FC = () => {
             </div>
           ) : null}
 
-          <SectionCard title={<span className="flex items-center gap-2"><FaBolt /> Quick Actions</span>} right={<div className="text-xs text-gray-500">Admin shortcuts</div>}>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/lab-onboarding")}>Onboard Lab</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/users-onboarding")}>Onboard Users</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/lab-admins-onboarding")}>Onboard Lab Admins</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/promocodes-onboarding")}>Add Promocodes</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/phlebos-onboarding")}>Onboard Phlebo</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/partner-requests")}>Onboard Partners</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/partnerspricinglists")}>Partners Pricing Lists</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/offline-sales")}>Offline Sales</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/online-sales-history")}>Online History</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/office-expenses")}>Office Expenses</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/employee-management")}>Employee Management</button>
-              <button className="w-full sm:w-auto rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700" onClick={() => navigate("/report-generator")}>Report Generator</button>
-              <button className="w-full sm:w-auto rounded-lg bg-white border px-4 py-2 text-sm font-semibold hover:bg-red-50" onClick={() => navigate("/reports")}>Go to Reports</button>
+          <SectionCard
+            title={
+              <span className="flex items-center gap-2">
+                <FaBolt /> Quick Actions
+              </span>
+            }
+            right={<div className="text-xs text-gray-500">Admin shortcuts</div>}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+
+              {/* Card */}
+              <div onClick={() => navigate("/lab-onboarding")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaHospital className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Labs</span>
+              </div>
+
+              <div onClick={() => navigate("/users-onboarding")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaUser className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Users</span>
+              </div>
+
+              <div onClick={() => navigate("/lab-admins-onboarding")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaUserShield className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Lab Admins</span>
+              </div>
+
+              <div onClick={() => navigate("/promocodes-onboarding")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaTags className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Promocodes</span>
+              </div>
+
+              <div onClick={() => navigate("/phlebos-onboarding")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaSyringe className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Phlebotomists</span>
+              </div>
+
+              <div onClick={() => navigate("/partner-requests")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaHandshake className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Partners</span>
+              </div>
+
+              <div onClick={() => navigate("/partnerspricinglists")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaMoneyBillWave className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Pricing</span>
+              </div>
+
+              <div onClick={() => navigate("/offline-sales")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaChartLine className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Offline Sales</span>
+              </div>
+
+              <div onClick={() => navigate("/online-sales-history")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaGlobe className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Online Sales</span>
+              </div>
+
+              <div onClick={() => navigate("/office-expenses")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaFileInvoiceDollar className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Expenses</span>
+              </div>
+
+              <div onClick={() => navigate("/employee-management")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaUsersCog className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Employees</span>
+              </div>
+
+              <div onClick={() => navigate("/report-generator")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaFileAlt className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Reports</span>
+              </div>
 
             </div>
           </SectionCard>
