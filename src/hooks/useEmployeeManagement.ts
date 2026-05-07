@@ -5,6 +5,7 @@ import {
   fetchActiveLetterhead,
   fetchAttendance,
   fetchSalarySlips,
+  fetchEmployeeSummary,
   type Employee,
 } from "../services/employeeManagement.service";
 
@@ -14,6 +15,7 @@ export function useEmployeeManagement() {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [salarySlips, setSalarySlips] = useState<any[]>([]);
   const [letterhead, setLetterhead] = useState<any | null>(null);
+  const [summary, setSummary] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -58,9 +60,19 @@ export function useEmployeeManagement() {
     setLetterhead(r.letterhead || null);
   };
 
+  const loadSummary = async () => {
+    try {
+      const r = await fetchEmployeeSummary();
+      setSummary(r.summary || null);
+    } catch (_e) {
+      setSummary(null);
+    }
+  };
+
   useEffect(() => {
     loadEmployees(1);
     loadLetterhead();
+    loadSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -71,6 +83,7 @@ export function useEmployeeManagement() {
     attendance,
     salarySlips,
     letterhead,
+    summary,
     loading,
     error,
     page,
@@ -87,5 +100,6 @@ export function useEmployeeManagement() {
     loadAttendance,
     loadSalarySlips,
     loadLetterhead,
+    loadSummary,
   };
 }

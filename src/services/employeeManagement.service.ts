@@ -136,3 +136,81 @@ export async function uploadLetterhead(title: string, file: File) {
 export async function fetchActiveLetterhead() {
   return apiFetch<{ success: boolean; letterhead: any | null }>(`${BASE}/superadmins/employee-management/letterhead`);
 }
+
+export async function fetchEmployeeSummary() {
+  return apiFetch<{
+    success: boolean;
+    summary: {
+      total: number;
+      active: number;
+      inactive: number;
+      left: number;
+      month: number;
+      year: number;
+      payroll: { gross: number; deductions: number; net: number };
+    };
+  }>(`${BASE}/superadmins/employee-management/summary`);
+}
+
+export async function setEmployeeStatus(id: string, status: "ACTIVE" | "INACTIVE" | "LEFT", leftDate?: string) {
+  return apiFetch<{ success: boolean; employee: Employee }>(`${BASE}/superadmins/employee-management/employees/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, leftDate }),
+  });
+}
+
+export async function softDeleteEmployee(id: string, reason?: string) {
+  return apiFetch<{ success: boolean; message: string; employee: Employee }>(
+    `${BASE}/superadmins/employee-management/employees/${id}`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ reason }),
+    },
+  );
+}
+
+export async function hardDeleteEmployee(id: string) {
+  return apiFetch<{ success: boolean; message: string }>(
+    `${BASE}/superadmins/employee-management/employees/${id}/permanent`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ confirm: "DELETE" }),
+    },
+  );
+}
+
+async function downloadWithAuth(url: string, fallbackFileName: string) {
+  const token = await getToken();
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as any)?.message || `HTTP ${res.status}`);
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("content-disposition") || "";
+  const match = cd.match(/filename=\"?([^\";]+)\"?/i);
+  const fileName = match?.[1] || fallbackFileName;
+  const a = document.createElement("a");
+  const objectUrl = window.URL.createObjectURL(blob);
+  a.href = objectUrl;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(objectUrl);
+}
+
+export async function downloadEmployeeData(employeeId: string) {
+  const url = `${BASE}/superadmins/employee-management/employees/${employeeId}/export`;
+  await downloadWithAuth(url, `employee-${employeeId}-full-data.json`);
+}
+
+export async function downloadSalarySlipFile(employeeId: string, slipId: string) {
+  const url = `${BASE}/superadmins/employee-management/employees/${employeeId}/salary-slips/${slipId}/download`;
+  await downloadWithAuth(url, `salary-slip-${slipId}.html`);
+}
