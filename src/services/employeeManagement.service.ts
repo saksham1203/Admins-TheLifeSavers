@@ -118,7 +118,24 @@ export async function fetchAttendance(employeeId: string, from: string, to: stri
   return apiFetch<{ success: boolean; attendance: any[] }>(`${BASE}/superadmins/employee-management/employees/${employeeId}/attendance?${qp.toString()}`);
 }
 
-export async function generateSalarySlip(employeeId: string, payload: { month: number; year: number; additions?: number; bonus?: number; deductionExtra?: number }) {
+export async function deleteAttendance(employeeId: string, attendanceId: string) {
+  return apiFetch<{ success: boolean; message: string }>(
+    `${BASE}/superadmins/employee-management/employees/${employeeId}/attendance/${attendanceId}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function generateSalarySlip(
+  employeeId: string,
+  payload: {
+    month: number;
+    year: number;
+    additions?: number;
+    bonus?: number;
+    deductionExtra?: number;
+    deductionLines?: Array<{ label: string; remark?: string; amount: number }>;
+  },
+) {
   return apiFetch(`${BASE}/superadmins/employee-management/employees/${employeeId}/salary-slips/generate`, { method: "POST", body: JSON.stringify(payload) });
 }
 
@@ -135,6 +152,21 @@ export async function uploadLetterhead(title: string, file: File) {
 
 export async function fetchActiveLetterhead() {
   return apiFetch<{ success: boolean; letterhead: any | null }>(`${BASE}/superadmins/employee-management/letterhead`);
+}
+
+export async function fetchActiveLetterheadBlob() {
+  const token = await getToken();
+  const res = await fetch(`${BASE}/superadmins/employee-management/letterhead/download`, {
+    method: "GET",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as any)?.message || `HTTP ${res.status}`);
+  }
+  return res.blob();
 }
 
 export async function fetchEmployeeSummary() {
@@ -213,4 +245,33 @@ export async function downloadEmployeeData(employeeId: string) {
 export async function downloadSalarySlipFile(employeeId: string, slipId: string) {
   const url = `${BASE}/superadmins/employee-management/employees/${employeeId}/salary-slips/${slipId}/download`;
   await downloadWithAuth(url, `salary-slip-${slipId}.html`);
+}
+
+export async function deleteSalarySlip(employeeId: string, slipId: string) {
+  return apiFetch<{ success: boolean; message: string }>(
+    `${BASE}/superadmins/employee-management/employees/${employeeId}/salary-slips/${slipId}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function markSelfAttendance(payload: {
+  employeeCode: string;
+  mobile: string;
+  status?: "PRESENT" | "ABSENT" | "HALF_DAY" | "LEAVE";
+  date?: string;
+  checkIn?: string;
+  checkOut?: string;
+  notes?: string;
+}) {
+  return apiFetch<{ success: boolean; attendance: any; employee: any }>(
+    `${BASE}/superadmins/employee-management/public/attendance`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+}
+
+export async function getPublicEmployeeByMobile(mobile: string) {
+  const qp = new URLSearchParams({ mobile });
+  return apiFetch<{ success: boolean; employee: any }>(
+    `${BASE}/superadmins/employee-management/public/employee-by-mobile?${qp.toString()}`,
+  );
 }

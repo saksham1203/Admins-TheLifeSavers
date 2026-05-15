@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PDFDocument, rgb } from "pdf-lib";
 import {
   FaArrowLeft,
   FaCalendarCheck,
@@ -16,12 +17,16 @@ import {
 import { useEmployeeManagement } from "../../hooks/useEmployeeManagement";
 import {
   addEmployeeDocument,
+  deleteAttendance,
   createEmployee,
   deleteEmployeeDocument,
+  deleteSalarySlip,
   downloadEmployeeData,
   downloadSalarySlipFile,
+  fetchActiveLetterheadBlob,
   generateSalarySlip,
   hardDeleteEmployee,
+  markSelfAttendance,
   markEmployeeLeft,
   setEmployeeStatus,
   softDeleteEmployee,
@@ -65,6 +70,30 @@ const emptyEmployeeForm = {
   status: "ACTIVE",
 };
 
+const fieldLabels: Record<string, string> = {
+  firstName: "First Name",
+  lastName: "Last Name",
+  designation: "Designation",
+  department: "Department",
+  joiningDate: "Joining Date",
+  dob: "Date of Birth",
+  email: "Email",
+  mobile: "Mobile Number",
+  salaryBasic: "Basic Salary",
+  salaryHra: "HRA",
+  salaryAllowances: "Allowances",
+  defaultDeductions: "Default Deductions",
+  bankName: "Bank Name",
+  bankAccountNumber: "Bank Account Number",
+  ifscCode: "IFSC Code",
+  panNumber: "PAN Number",
+  aadhaarNumber: "Aadhaar Number",
+  emergencyContact: "Emergency Contact",
+  address: "Address",
+  notes: "Admin Notes",
+  status: "Status",
+};
+
 const EmployeeManagement: React.FC = () => {
   const navigate = useNavigate();
   const h = useEmployeeManagement();
@@ -94,6 +123,8 @@ const EmployeeManagement: React.FC = () => {
     additions: 0,
     bonus: 0,
     deductionExtra: 0,
+    deductionTitle: "",
+    deductionRemark: "",
   });
 
   const [letterSettings, setLetterSettings] = useState({
@@ -102,6 +133,7 @@ const EmployeeManagement: React.FC = () => {
     signatoryName: "HR Department",
     signatoryRole: "Human Resources",
     body: "",
+    letterDate: "",
   });
 
   const stats = useMemo(() => {
@@ -113,6 +145,7 @@ const EmployeeManagement: React.FC = () => {
   }, [h.employees, h.salarySlips]);
 
   const selected = h.selectedEmployee as (Employee & { documents?: any[] }) | null;
+  const selfAttendanceLink = `${window.location.origin}/employee-attendance`;
 
   const hydrateFormFromEmployee = (emp: any) => {
     setForm({
@@ -170,28 +203,56 @@ const EmployeeManagement: React.FC = () => {
 
     const customBody = letterSettings.body.trim() || body;
 
+    const letterheadUrl = h.letterhead?.fileViewUrl || "";
+    let letterPath = "";
+    try {
+      letterPath = letterheadUrl ? new URL(letterheadUrl).pathname : "";
+    } catch (_e) {
+      letterPath = letterheadUrl.split("?")[0] || "";
+    }
+    const hasImageLetterhead = /\.(png|jpg|jpeg|webp)$/i.test(letterPath);
+    const hasPdfLetterhead = /\.pdf$/i.test(letterPath);
+    const hasLetterhead = hasImageLetterhead || hasPdfLetterhead;
     return `<!doctype html>
 <html><head><meta charset="utf-8" /><title>${kind === "offer" ? "Offer Letter" : "Experience Letter"}</title>
 <style>
-body{font-family:Georgia,serif;color:#222;padding:32px;line-height:1.55}
-.header{border-bottom:2px solid #dc2626;padding-bottom:12px;margin-bottom:18px}
-.title{font-size:28px;font-weight:700;color:#b91c1c;margin:0}
-.meta{font-size:13px;color:#666;margin-top:8px}
-.footer{margin-top:48px}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#f3f4f6}
+body{font-family:Georgia,serif;color:#111827;line-height:1.6}
+.page{position:relative;width:210mm;min-height:297mm;margin:12px auto;background:#fff;overflow:hidden}
+.letterhead{position:absolute;inset:0;z-index:0;pointer-events:none}
+.letterhead img{width:100%;height:100%;object-fit:cover}
+.letterhead iframe{width:100%;height:100%;border:0}
+.content{position:relative;z-index:2;padding:28mm 18mm 20mm}
+.content.with-letterhead{padding-top:56mm}
+.meta{font-size:13px;color:#4b5563;margin-bottom:8px}
+.line{height:1px;background:#dc2626;margin:8px 0 18px}
+h2{margin:0 0 10px;font-size:42px;line-height:1.1;font-weight:700;color:#111827}
+p{margin:0 0 14px}
+.footer{margin-top:44px}
 .sign{margin-top:20px;font-weight:700}
+@media print{
+  @page{size:A4;margin:0}
+  html,body{background:#fff}
+  .page{margin:0}
+}
 </style></head><body>
-  <div class="header">
-    <h1 class="title">${letterSettings.companyName}</h1>
-    <div>${letterSettings.companyAddress || ""}</div>
-    <div class="meta">Date: ${date}</div>
-  </div>
-  <h2>${kind === "offer" ? "Offer Letter" : "Experience Letter"}</h2>
-  <p>Dear ${fullName},</p>
-  <p>${customBody}</p>
-  <p>Regards,</p>
-  <div class="footer">
-    <div class="sign">${letterSettings.signatoryName}</div>
-    <div>${letterSettings.signatoryRole}</div>
+  <div class="page">
+    ${hasImageLetterhead ? `<div class="letterhead"><img src="${letterheadUrl}" /></div>` : ""}
+    ${!hasImageLetterhead && hasPdfLetterhead ? `<div class="letterhead"><iframe src="${letterheadUrl}#view=FitH"></iframe></div>` : ""}
+    <div class="content ${hasLetterhead ? "with-letterhead" : ""}">
+      ${!hasLetterhead ? `<div style="font-size:28px;font-weight:700;color:#b91c1c;">${letterSettings.companyName}</div><div class="meta">${letterSettings.companyAddress || ""}</div>` : ""}
+      <div class="meta">Date: ${date}</div>
+      <div class="line"></div>
+      <h2>${kind === "offer" ? "Offer Letter" : "Experience Letter"}</h2>
+      <p>Dear ${fullName},</p>
+      <p>${customBody}</p>
+      <p>Regards,</p>
+      <div class="footer">
+        <div class="sign">${letterSettings.signatoryName}</div>
+        <div>${letterSettings.signatoryRole}</div>
+      </div>
+    </div>
   </div>
 </body></html>`;
   };
@@ -204,14 +265,171 @@ body{font-family:Georgia,serif;color:#222;padding:32px;line-height:1.55}
     h.setSelectedEmployee(null);
     setActiveTab("profile");
   };
-  const openPrintableLetter = (kind: "offer" | "experience") => {
-    const html = buildLetter(kind);
-    if (!html) return;
-    const win = window.open("", "_blank");
+  const generateLetterPdf = async (kind: "offer" | "experience") => {
+    if (!selected) return null;
+
+    const date = letterSettings.letterDate
+      ? new Date(letterSettings.letterDate).toLocaleDateString("en-IN")
+      : "";
+    const fullName = `${selected.firstName || ""} ${selected.lastName || ""}`.trim();
+    const joiningDate = selected.joiningDate ? new Date(selected.joiningDate).toLocaleDateString("en-IN") : "";
+    const today = new Date().toLocaleDateString("en-IN");
+    const bodyText =
+      kind === "offer"
+        ? `This is to formally offer employment to ${fullName} for the role of ${selected.designation}. Your joining date is ${joiningDate}.`
+        : `This is to certify that ${fullName} worked with ${letterSettings.companyName} as ${selected.designation} from ${joiningDate} to ${today}.`;
+    const customBody = letterSettings.body.trim() || bodyText;
+
+    const pdfDoc = await PDFDocument.create();
+    let page;
+    let pageWidth = 595.28;
+    let pageHeight = 841.89;
+
+    if (h.letterhead) {
+      const letterheadBlob = await fetchActiveLetterheadBlob();
+      const letterheadBytes = await letterheadBlob.arrayBuffer();
+      const ctype = String(letterheadBlob.type || "").toLowerCase();
+      const isPdf = ctype.includes("pdf");
+      const isPng = ctype.includes("png");
+      const isJpg = ctype.includes("jpeg") || ctype.includes("jpg");
+      if (isPdf) {
+        const lhPdf = await PDFDocument.load(letterheadBytes);
+        const lhPage = lhPdf.getPages()[0];
+        pageWidth = lhPage.getWidth();
+        pageHeight = lhPage.getHeight();
+        const embedded = await pdfDoc.embedPage(lhPage);
+        page = pdfDoc.addPage([pageWidth, pageHeight]);
+        page.drawPage(embedded, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+      } else if (isPng || isJpg) {
+        page = pdfDoc.addPage([pageWidth, pageHeight]);
+        const embedded = isPng ? await pdfDoc.embedPng(letterheadBytes) : await pdfDoc.embedJpg(letterheadBytes);
+        page.drawImage(embedded, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+      }
+    }
+
+    if (!page) page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+    let font;
+    let bold;
+    try {
+      font = await pdfDoc.embedFont("Times-Roman");
+      bold = await pdfDoc.embedFont("Times-Bold");
+    } catch (_e) {
+      // Safe fallback for environments where Times isn't available.
+      font = await pdfDoc.embedFont("Helvetica");
+      bold = await pdfDoc.embedFont("Helvetica-Bold");
+    }
+    const marginX = 48;
+    const startY = pageHeight - 150;
+    const maxWidth = pageWidth - marginX * 2;
+    let y = startY;
+
+    const wrapText = (text: string, fSize = 13) => {
+      const words = text.split(/\s+/);
+      const lines: string[] = [];
+      let line = "";
+      const splitLongWord = (word: string) => {
+        const parts: string[] = [];
+        let chunk = "";
+        for (const ch of word) {
+          const candidate = chunk + ch;
+          if (font.widthOfTextAtSize(candidate, fSize) <= maxWidth) {
+            chunk = candidate;
+          } else {
+            if (chunk) parts.push(chunk);
+            chunk = ch;
+          }
+        }
+        if (chunk) parts.push(chunk);
+        return parts;
+      };
+      for (const w of words) {
+        if (font.widthOfTextAtSize(w, fSize) > maxWidth) {
+          const parts = splitLongWord(w);
+          for (const p of parts) {
+            const candidate = line ? `${line} ${p}` : p;
+            if (font.widthOfTextAtSize(candidate, fSize) <= maxWidth) {
+              line = candidate;
+            } else {
+              if (line) lines.push(line);
+              line = p;
+            }
+          }
+          continue;
+        }
+        const candidate = line ? `${line} ${w}` : w;
+        if (font.widthOfTextAtSize(candidate, fSize) <= maxWidth) line = candidate;
+        else {
+          if (line) lines.push(line);
+          line = w;
+        }
+      }
+      if (line) lines.push(line);
+      return lines;
+    };
+
+    const title = kind === "offer" ? "Offer Letter" : "Experience Letter";
+    const titleSize = 34;
+    const titleWidth = bold.widthOfTextAtSize(title, titleSize);
+    const titleX = Math.max(marginX, (pageWidth - titleWidth) / 2);
+    page.drawText(title, { x: titleX, y, size: titleSize, font: bold, color: rgb(0.1, 0.1, 0.1) });
+    y -= 32;
+    if (date) {
+      page.drawText(`Date: ${date}`, { x: marginX, y, size: 12, font, color: rgb(0.2, 0.2, 0.2) });
+      y -= 30;
+    } else {
+      y -= 10;
+    }
+    page.drawText(`Dear ${fullName},`, { x: marginX, y, size: 13, font, color: rgb(0.1, 0.1, 0.1) });
+    y -= 28;
+    wrapText(customBody, 13).forEach((line) => {
+      page.drawText(line, { x: marginX, y, size: 13, font, color: rgb(0.1, 0.1, 0.1) });
+      y -= 19;
+    });
+    y -= 20;
+    page.drawText("Regards,", { x: marginX, y, size: 13, font, color: rgb(0.1, 0.1, 0.1) });
+    y -= 44;
+    page.drawText(letterSettings.signatoryName, { x: marginX, y, size: 13, font: bold, color: rgb(0.1, 0.1, 0.1) });
+    y -= 18;
+    page.drawText(letterSettings.signatoryRole, { x: marginX, y, size: 12, font, color: rgb(0.1, 0.1, 0.1) });
+
+    const bytes = await pdfDoc.save();
+    return new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+  };
+
+  const openPrintableLetter = async (kind: "offer" | "experience") => {
+    let blob: Blob | null = null;
+    try {
+      blob = await generateLetterPdf(kind);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Failed to generate letter PDF");
+      return;
+    }
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
     if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => win.print(), 300);
+    setTimeout(() => win.print(), 600);
+  };
+
+  const downloadLetter = async (kind: "offer" | "experience") => {
+    let blob: Blob | null = null;
+    try {
+      blob = await generateLetterPdf(kind);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Failed to generate letter PDF");
+      return;
+    }
+    if (!blob || !selected) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const name = `${selected.employeeCode || "employee"}-${kind}-letter.pdf`.replace(/[^a-z0-9._-]/gi, "_");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -388,14 +606,16 @@ body{font-family:Georgia,serif;color:#222;padding:32px;line-height:1.55}
                       <div className="text-sm font-bold text-red-700">Profile & Employment Details</div>
                       <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                         {Object.entries(form).map(([k, v]) => (
-                          <input
-                            key={k}
-                            value={String(v ?? "")}
-                            onChange={(e) => setForm((s: any) => ({ ...s, [k]: e.target.value }))}
-                            placeholder={k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}
-                            type={k.toLowerCase().includes("date") ? "date" : k.toLowerCase().includes("salary") ? "number" : "text"}
-                            className="rounded-xl border px-3 py-2 text-sm"
-                          />
+                          <label key={k} className="text-xs text-gray-700">
+                            <div className="mb-1 font-semibold">{fieldLabels[k] || k}</div>
+                            <input
+                              value={String(v ?? "")}
+                              onChange={(e) => setForm((s: any) => ({ ...s, [k]: e.target.value }))}
+                              placeholder={fieldLabels[k] || k}
+                              type={k.toLowerCase().includes("date") ? "date" : k.toLowerCase().includes("salary") ? "number" : "text"}
+                              className="w-full rounded-xl border px-3 py-2 text-sm"
+                            />
+                          </label>
                         ))}
                         <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} className="rounded-xl border px-3 py-2 text-sm" />
                       </div>
@@ -449,6 +669,7 @@ body{font-family:Georgia,serif;color:#222;padding:32px;line-height:1.55}
                           <div className="grid grid-cols-1 gap-2">
                             <input value={letterSettings.companyName} onChange={(e) => setLetterSettings((s) => ({ ...s, companyName: e.target.value }))} placeholder="Company Name" className="rounded-lg border px-3 py-2 text-sm" />
                             <input value={letterSettings.companyAddress} onChange={(e) => setLetterSettings((s) => ({ ...s, companyAddress: e.target.value }))} placeholder="Company Address" className="rounded-lg border px-3 py-2 text-sm" />
+                            <input type="date" value={letterSettings.letterDate} onChange={(e) => setLetterSettings((s) => ({ ...s, letterDate: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
                             <input value={letterSettings.signatoryName} onChange={(e) => setLetterSettings((s) => ({ ...s, signatoryName: e.target.value }))} placeholder="Signatory Name" className="rounded-lg border px-3 py-2 text-sm" />
                             <input value={letterSettings.signatoryRole} onChange={(e) => setLetterSettings((s) => ({ ...s, signatoryRole: e.target.value }))} placeholder="Signatory Role" className="rounded-lg border px-3 py-2 text-sm" />
                             <textarea value={letterSettings.body} onChange={(e) => setLetterSettings((s) => ({ ...s, body: e.target.value }))} placeholder="Custom letter body (optional)" className="min-h-[90px] rounded-lg border px-3 py-2 text-sm" />
@@ -456,6 +677,8 @@ body{font-family:Georgia,serif;color:#222;padding:32px;line-height:1.55}
                           <div className="mt-2 flex flex-wrap gap-2">
                             <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => openPrintableLetter("offer")}><FaPrint className="mr-2 inline" /> Offer Letter</button>
                             <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => openPrintableLetter("experience")}><FaPrint className="mr-2 inline" /> Experience Letter</button>
+                            <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => downloadLetter("offer")}>Download Offer Letter</button>
+                            <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => downloadLetter("experience")}>Download Experience Letter</button>
                           </div>
                         </div>
                       </div>
@@ -465,6 +688,42 @@ body{font-family:Georgia,serif;color:#222;padding:32px;line-height:1.55}
                   {selected && activeTab === "attendance" ? (
                     <div className="space-y-3">
                       <div className="text-sm font-bold text-red-700">Attendance (Backdated Supported)</div>
+                      <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2">
+                        <div className="text-xs text-indigo-700">
+                          Employee Self-Attendance Link:{" "}
+                          <a href={selfAttendanceLink} target="_blank" rel="noreferrer" className="font-semibold underline">
+                            {selfAttendanceLink}
+                          </a>
+                        </div>
+                        <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-4">
+                          <input value={selected.employeeCode || ""} readOnly className="rounded-lg border px-3 py-2 text-xs bg-white" />
+                          <input value={selected.mobile || ""} readOnly className="rounded-lg border px-3 py-2 text-xs bg-white" />
+                          <button
+                            className="rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-white"
+                            onClick={() => navigator.clipboard.writeText(selfAttendanceLink)}
+                          >
+                            Copy Link
+                          </button>
+                          <button
+                            className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+                            onClick={async () => {
+                              if (!selected.employeeCode || !selected.mobile) return;
+                              await markSelfAttendance({
+                                employeeCode: selected.employeeCode,
+                                mobile: selected.mobile,
+                                date: attendance.date,
+                                status: attendance.status as any,
+                                checkIn: attendance.checkIn,
+                                checkOut: attendance.checkOut,
+                                notes: "Marked by employee link flow",
+                              });
+                              await h.loadAttendance(selected.id, attendance.from, attendance.to);
+                            }}
+                          >
+                            Test Self Mark
+                          </button>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                         <input type="date" value={attendance.date} onChange={(e) => setAttendance((s) => ({ ...s, date: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
                         <select value={attendance.status} onChange={(e) => setAttendance((s) => ({ ...s, status: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm"><option>PRESENT</option><option>ABSENT</option><option>HALF_DAY</option><option>LEAVE</option></select>
@@ -482,7 +741,7 @@ body{font-family:Georgia,serif;color:#222;padding:32px;line-height:1.55}
                       </div>
 
                       <div className="max-h-[38vh] overflow-auto rounded-xl border">
-                        <table className="min-w-full text-sm"><thead className="bg-red-50"><tr><th className="px-2 py-2 text-left">Date</th><th className="px-2 py-2 text-left">Status</th><th className="px-2 py-2 text-left">In</th><th className="px-2 py-2 text-left">Out</th><th className="px-2 py-2 text-left">Notes</th></tr></thead><tbody>{h.attendance.map((a: any) => <tr key={a.id} className="border-t"><td className="px-2 py-2">{String(a.date).slice(0,10)}</td><td className="px-2 py-2">{a.status}</td><td className="px-2 py-2">{a.checkIn || "-"}</td><td className="px-2 py-2">{a.checkOut || "-"}</td><td className="px-2 py-2">{a.notes || "-"}</td></tr>)}</tbody></table>
+                        <table className="min-w-full text-sm"><thead className="bg-red-50"><tr><th className="px-2 py-2 text-left">Date</th><th className="px-2 py-2 text-left">Status</th><th className="px-2 py-2 text-left">In</th><th className="px-2 py-2 text-left">Out</th><th className="px-2 py-2 text-left">Notes</th><th className="px-2 py-2 text-left">Actions</th></tr></thead><tbody>{h.attendance.map((a: any) => <tr key={a.id} className="border-t"><td className="px-2 py-2">{String(a.date).slice(0,10)}</td><td className="px-2 py-2">{a.status}</td><td className="px-2 py-2">{a.checkIn || "-"}</td><td className="px-2 py-2">{a.checkOut || "-"}</td><td className="px-2 py-2">{a.notes || "-"}</td><td className="px-2 py-2"><div className="flex gap-2"><button className="rounded border px-2 py-1 text-xs font-semibold hover:bg-red-50" onClick={() => setAttendance((s) => ({ ...s, date: String(a.date).slice(0, 10), status: a.status || "PRESENT", checkIn: a.checkIn || "", checkOut: a.checkOut || "", notes: a.notes || "" }))}>Edit</button><button className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700" onClick={async () => { const ok = window.confirm("Delete this attendance entry?"); if (!ok) return; await deleteAttendance(selected.id, a.id); await h.loadAttendance(selected.id, attendance.from, attendance.to); }}>Delete</button></div></td></tr>)}</tbody></table>
                       </div>
                     </div>
                   ) : null}
@@ -490,17 +749,39 @@ body{font-family:Georgia,serif;color:#222;padding:32px;line-height:1.55}
                   {selected && activeTab === "payroll" ? (
                     <div className="space-y-3">
                       <div className="text-sm font-bold text-red-700">Payroll & Salary Slip Generator</div>
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                        Keep deductions as zero for full salary. If deduction exists, add amount + title/remark.
+                      </div>
                       <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                         <input type="number" value={salary.month} onChange={(e) => setSalary((s) => ({ ...s, month: Number(e.target.value) }))} placeholder="Month (1-12)" className="rounded-lg border px-3 py-2 text-sm" />
                         <input type="number" value={salary.year} onChange={(e) => setSalary((s) => ({ ...s, year: Number(e.target.value) }))} placeholder="Year" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input type="number" value={salary.additions} onChange={(e) => setSalary((s) => ({ ...s, additions: Number(e.target.value) }))} placeholder="Additions" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input type="number" value={salary.bonus} onChange={(e) => setSalary((s) => ({ ...s, bonus: Number(e.target.value) }))} placeholder="Bonus" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input type="number" value={salary.deductionExtra} onChange={(e) => setSalary((s) => ({ ...s, deductionExtra: Number(e.target.value) }))} placeholder="Extra Deductions" className="rounded-lg border px-3 py-2 text-sm" />
-                        <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => { await generateSalarySlip(selected.id, salary); await h.loadSalarySlips(selected.id); }}>Generate / Regenerate Slip</button>
+                        <input type="number" value={salary.deductionExtra} onChange={(e) => setSalary((s) => ({ ...s, deductionExtra: Number(e.target.value) }))} placeholder="Deduction Amount (optional)" className="rounded-lg border px-3 py-2 text-sm" />
+                        <input value={salary.deductionTitle} onChange={(e) => setSalary((s) => ({ ...s, deductionTitle: e.target.value }))} placeholder="Deduction Title (optional)" className="rounded-lg border px-3 py-2 text-sm" />
+                        <input value={salary.deductionRemark} onChange={(e) => setSalary((s) => ({ ...s, deductionRemark: e.target.value }))} placeholder="Deduction Remark (optional)" className="rounded-lg border px-3 py-2 text-sm" />
+                        <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => {
+                          await generateSalarySlip(selected.id, {
+                            month: salary.month,
+                            year: salary.year,
+                            additions: 0,
+                            bonus: 0,
+                            deductionExtra: salary.deductionExtra,
+                            deductionLines:
+                              salary.deductionExtra > 0
+                                ? [
+                                    {
+                                      label: salary.deductionTitle || "Manual Deduction",
+                                      remark: salary.deductionRemark || undefined,
+                                      amount: salary.deductionExtra,
+                                    },
+                                  ]
+                                : [],
+                          });
+                          await h.loadSalarySlips(selected.id);
+                        }}>Generate / Regenerate Slip</button>
                       </div>
 
                       <div className="max-h-[42vh] overflow-auto rounded-xl border">
-                        <table className="min-w-full text-sm"><thead className="bg-red-50"><tr><th className="px-2 py-2 text-left">Month</th><th className="px-2 py-2 text-left">Paid Days</th><th className="px-2 py-2 text-left">Gross</th><th className="px-2 py-2 text-left">Deductions</th><th className="px-2 py-2 text-left">Net</th><th className="px-2 py-2 text-left">Download</th></tr></thead><tbody>{h.salarySlips.map((s: any) => <tr key={s.id} className="border-t"><td className="px-2 py-2">{s.month}/{s.year}</td><td className="px-2 py-2">{s.paidDays}/{s.workingDays}</td><td className="px-2 py-2">{money(s.grossSalary)}</td><td className="px-2 py-2">{money(s.totalDeductions)}</td><td className="px-2 py-2 font-bold text-emerald-700">{money(s.netSalary)}</td><td className="px-2 py-2"><button className="rounded-lg border px-2 py-1 text-xs font-semibold hover:bg-red-50" onClick={async () => { await downloadSalarySlipFile(selected.id, s.id); }}>Download</button></td></tr>)}</tbody></table>
+                        <table className="min-w-full text-sm"><thead className="bg-red-50"><tr><th className="px-2 py-2 text-left">Month</th><th className="px-2 py-2 text-left">Paid Days</th><th className="px-2 py-2 text-left">Gross</th><th className="px-2 py-2 text-left">Deductions</th><th className="px-2 py-2 text-left">Net</th><th className="px-2 py-2 text-left">Actions</th></tr></thead><tbody>{h.salarySlips.map((s: any) => <tr key={s.id} className="border-t"><td className="px-2 py-2">{s.month}/{s.year}</td><td className="px-2 py-2">{s.paidDays}/{s.workingDays}</td><td className="px-2 py-2">{money(s.grossSalary)}</td><td className="px-2 py-2">{money(s.totalDeductions)}</td><td className="px-2 py-2 font-bold text-emerald-700">{money(s.netSalary)}</td><td className="px-2 py-2"><div className="flex gap-2"><button className="rounded-lg border px-2 py-1 text-xs font-semibold hover:bg-red-50" onClick={async () => { await downloadSalarySlipFile(selected.id, s.id); }}>Download</button><button className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700" onClick={async () => { const ok = window.confirm("Delete this salary slip?"); if (!ok) return; await deleteSalarySlip(selected.id, s.id); await h.loadSalarySlips(selected.id); }}>Delete</button></div></td></tr>)}</tbody></table>
                       </div>
                     </div>
                   ) : null}

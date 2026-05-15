@@ -49,6 +49,7 @@ const AppLayout = () => {
   const memoizedFooter = useMemo(() => <Footer />, []);
   const memoizedContactIcon = useMemo(() => <ContactIcon />, []);
   const memoizedScrollToTopButton = useMemo(() => <ScrollToTopButton />, []);
+  const isAttendanceStandalone = location.pathname === "/employee-attendance";
 
   return (
     <HelmetProvider>
@@ -74,13 +75,13 @@ const AppLayout = () => {
                     isDisclaimerVisible ? "opacity-50" : "opacity-100"
                   }`}
                 >
-                  {memoizedHeader}
+                  {!isAttendanceStandalone ? memoizedHeader : null}
                   <main className="flex-1">
                     <Outlet />
                   </main>
-                  {memoizedContactIcon}
-                  {memoizedScrollToTopButton}
-                  {memoizedFooter}
+                  {!isAttendanceStandalone ? memoizedContactIcon : null}
+                  {!isAttendanceStandalone ? memoizedScrollToTopButton : null}
+                  {!isAttendanceStandalone ? memoizedFooter : null}
                 </div>
               </>
             )}

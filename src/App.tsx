@@ -39,6 +39,7 @@ const OfflineSales = lazy(() => import("./pages/OfflineSales/OfflineSales"))
 const OnlineSalesHistory = lazy(() => import("./pages/OnlineSalesHistory/OnlineSalesHistory"))
 const OfficeExpenses = lazy(() => import("./pages/OfficeExpenses/OfficeExpenses"))
 const EmployeeManagement = lazy(() => import("./pages/EmployeeManagement/EmployeeManagement"))
+const EmployeeAttendance = lazy(() => import("./pages/EmployeeAttendance/EmployeeAttendance"))
 
 const ReportGenerator = lazy(() => import("./pages/ReportGenerator/ReportGenerator"))
 
@@ -78,6 +79,7 @@ const PATHS = {
   ONLINE_SALES_HISTORY: "/online-sales-history",
   OFFICE_EXPENSES: "/office-expenses",
   EMPLOYEE_MANAGEMENT: "/employee-management",
+  EMPLOYEE_ATTENDANCE: "/employee-attendance",
 };
 
 const App = () => {
@@ -283,6 +285,14 @@ const App = () => {
               ),
             },
           ],
+        },
+        {
+          path: PATHS.EMPLOYEE_ATTENDANCE,
+          element: (
+            <Suspense fallback={<div>Loading...</div>}>
+              <EmployeeAttendance />
+            </Suspense>
+          ),
         },
         {
           path: PATHS.ONLINE_SALES_HISTORY,
