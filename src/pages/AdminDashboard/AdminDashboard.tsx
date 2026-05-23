@@ -21,6 +21,8 @@ import {
   FaUser,
   FaUsersCog,
   FaUserShield,
+  FaBell,
+  FaBlog,
 } from "react-icons/fa";
 import {
   LineChart,
@@ -454,6 +456,18 @@ const AdminDashboard: React.FC = () => {
                 className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
                 <FaFileAlt className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
                 <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Reports</span>
+              </div>
+
+              <div onClick={() => navigate("/push-notifications")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaBell className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Push Notifications</span>
+              </div>
+
+              <div onClick={() => navigate("/blogs-management")}
+                className="cursor-pointer group rounded-xl border bg-white p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-red-400 transition">
+                <FaBlog className="text-xl text-red-600 mb-2 group-hover:scale-110 transition" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Blogs</span>
               </div>
 
             </div>
@@ -1049,7 +1063,6 @@ const AdminDashboard: React.FC = () => {
 };
 
 export default AdminDashboard;
-
 
 
 

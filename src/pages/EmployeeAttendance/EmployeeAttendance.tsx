@@ -4,6 +4,9 @@ import { getPublicEmployeeByMobile, markSelfAttendance } from "../../services/em
 
 const toYmd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const sanitizeMobile = (v: string) => v.replace(/\D/g, "").slice(-10);
+const isValidMobile = (v: string) => /^\d{10}$/.test(sanitizeMobile(v));
+const isValidTimeHHmm = (v: string) => !v || /^([01]\d|2[0-3]):([0-5]\d)$/.test(v.trim());
 
 const EmployeeAttendance: React.FC = () => {
   const [form, setForm] = useState({
@@ -22,11 +25,14 @@ const EmployeeAttendance: React.FC = () => {
   const [employeeName, setEmployeeName] = useState("");
 
   const fetchEmployee = async () => {
-    if (!form.mobile.trim()) return;
+    if (!isValidMobile(form.mobile)) {
+      setErr("Enter valid 10-digit mobile number.");
+      return;
+    }
     setFetching(true);
     setErr("");
     try {
-      const res = await getPublicEmployeeByMobile(form.mobile.trim());
+      const res = await getPublicEmployeeByMobile(sanitizeMobile(form.mobile));
       const emp = res.employee;
       setForm((s) => ({ ...s, employeeCode: emp.employeeCode || "" }));
       setEmployeeName(`${emp.firstName || ""} ${emp.lastName || ""}`.trim());
@@ -43,11 +49,15 @@ const EmployeeAttendance: React.FC = () => {
       setErr("Please fetch employee first using mobile number.");
       return;
     }
+    if (!isValidTimeHHmm(form.checkIn) || !isValidTimeHHmm(form.checkOut)) {
+      setErr("Check-in/Check-out must be in HH:mm format.");
+      return;
+    }
     setSaving(true);
     setMsg("");
     setErr("");
     try {
-      await markSelfAttendance(form);
+      await markSelfAttendance({ ...form, mobile: sanitizeMobile(form.mobile) });
       setMsg("Attendance marked successfully.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to mark attendance");
@@ -64,16 +74,16 @@ const EmployeeAttendance: React.FC = () => {
           <h1 className="text-lg font-bold">Employee Attendance</h1>
         </div>
         <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
-          Enter mobile number, fetch employee code automatically, then mark PRESENT/ABSENT/HALF_DAY/LEAVE.
+          Enter your registered mobile number, fetch your profile, then mark attendance for today.
         </div>
         <div className="grid grid-cols-1 gap-2">
-          <input className="rounded-lg border px-3 py-2 text-sm" placeholder="Mobile Number" value={form.mobile} onChange={(e) => setForm((s) => ({ ...s, mobile: e.target.value }))} />
+          <input className="rounded-lg border px-3 py-2 text-sm" placeholder="Registered Mobile Number" value={form.mobile} onChange={(e) => setForm((s) => ({ ...s, mobile: sanitizeMobile(e.target.value) }))} />
           <button disabled={fetching} className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-60" onClick={fetchEmployee}>
             {fetching ? "Fetching..." : "Fetch Employee"}
           </button>
           <input className="rounded-lg border bg-gray-50 px-3 py-2 text-sm" placeholder="Employee Code (auto fetched)" value={form.employeeCode} readOnly />
           {employeeName ? <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Employee: {employeeName}</div> : null}
-          <input type="date" className="rounded-lg border px-3 py-2 text-sm" value={form.date} onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))} />
+          <input type="date" className="rounded-lg border px-3 py-2 text-sm bg-gray-50" value={form.date} onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))} readOnly />
           <select className="rounded-lg border px-3 py-2 text-sm" value={form.status} onChange={(e) => setForm((s) => ({ ...s, status: e.target.value as any }))}>
             <option value="PRESENT">PRESENT</option>
             <option value="ABSENT">ABSENT</option>

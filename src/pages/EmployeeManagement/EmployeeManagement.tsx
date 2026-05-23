@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import {
   FaArrowLeft,
   FaCalendarCheck,
@@ -42,6 +42,10 @@ const toYmd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const money = (n: number) => `Rs${Number(n || 0).toLocaleString("en-IN")}`;
+const isValidEmail = (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const sanitizeMobile = (v: string) => v.replace(/\D/g, "").slice(-10);
+const isValidMobile = (v: string) => /^\d{10}$/.test(sanitizeMobile(v));
+const isValidTimeHHmm = (v: string) => !v || /^([01]\d|2[0-3]):([0-5]\d)$/.test(v.trim());
 
 const cardClass =
   "rounded-2xl border border-red-100 bg-white/95 shadow-sm hover:shadow-md transition-shadow";
@@ -81,8 +85,8 @@ const fieldLabels: Record<string, string> = {
   mobile: "Mobile Number",
   salaryBasic: "Basic Salary",
   salaryHra: "HRA",
-  salaryAllowances: "Allowances",
-  defaultDeductions: "Default Deductions",
+  salaryAllowances: "Special Allowances",
+  defaultDeductions: "Standard Monthly Deductions",
   bankName: "Bank Name",
   bankAccountNumber: "Bank Account Number",
   ifscCode: "IFSC Code",
@@ -93,6 +97,46 @@ const fieldLabels: Record<string, string> = {
   notes: "Admin Notes",
   status: "Status",
 };
+const requiredFieldKeys = ["firstName", "lastName", "mobile", "designation", "joiningDate"] as const;
+const LETTER_DRAFTS_KEY = "employee_letter_standard_drafts_v1";
+const DEFAULT_OFFER_TEMPLATE = `<p><b>Subject: Offer of Employment</b></p>
+<p>Dear <b>{{EMPLOYEE_NAME}}</b>,</p>
+<p>We are pleased to offer you employment with <b>{{COMPANY_NAME}}</b> for the position of <b>{{DESIGNATION}}</b>. This offer is made based on your profile, discussions, and organizational requirements.</p>
+<p>Your date of joining will be <b>{{JOINING_DATE}}</b>. You will be placed under the applicable company policies, code of conduct, and operational guidelines issued from time to time.</p>
+<p>Your roles and responsibilities will include duties relevant to your designation and any additional assignments reasonably delegated by reporting management in the interest of business operations.</p>
+<p>This offer is subject to successful completion of onboarding formalities, submission and verification of required documents, and adherence to internal compliance standards.</p>
+<p>By accepting this offer and joining the organization, you confirm that all information and documents provided by you are true and accurate to the best of your knowledge.</p>
+<p>Kindly sign and acknowledge this offer as confirmation of your acceptance.</p>`;
+
+const DEFAULT_EXPERIENCE_TEMPLATE = `<p><b>Subject: Experience Certificate</b></p>
+<p>To Whomsoever It May Concern,</p>
+<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as <b>{{DESIGNATION}}</b> from <b>{{JOINING_DATE}}</b> to <b>{{LETTER_DATE_OR_TODAY}}</b>.</p>
+<p>During the tenure, the employee was associated with assigned responsibilities and supported day-to-day operations in line with organizational standards and reporting requirements.</p>
+<p>Key responsibilities handled included service execution, process adherence, coordination with internal stakeholders, and timely completion of assigned duties as per role requirements.</p>
+<p>The employee demonstrated a professional attitude, punctuality, and cooperative conduct with colleagues, reporting managers, and clients.</p>
+<p>Overall performance and behavior were found to be satisfactory during the period of employment.</p>
+<p>This certificate is being issued upon request for official and professional purposes.</p>`;
+const DEFAULT_PHLEBOTOMIST_EXPERIENCE_TEMPLATE = `<p><b>Subject: Experience Certificate</b></p>
+<p>To Whomsoever It May Concern,</p>
+<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as a <b>Phlebotomist</b> from <b>{{JOINING_DATE}}</b> to <b>{{LETTER_DATE_OR_TODAY}}</b>.</p>
+<p>During this period, the employee was responsible for patient interaction, sample collection, labeling, maintaining hygiene standards, following safety protocols, and coordinating with diagnostics operations.</p>
+<p>The employee maintained professional conduct and carried out assigned duties diligently in accordance with operational guidelines.</p>
+<p>Overall performance and behavior were found satisfactory.</p>
+<p>This certificate is issued on request for official use.</p>`;
+const DEFAULT_RECEPTIONIST_EXPERIENCE_TEMPLATE = `<p><b>Subject: Experience Certificate</b></p>
+<p>To Whomsoever It May Concern,</p>
+<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as a <b>Receptionist</b> from <b>{{JOINING_DATE}}</b> to <b>{{LETTER_DATE_OR_TODAY}}</b>.</p>
+<p>During this period, the employee was responsible for front desk operations, visitor management, call coordination, appointment scheduling, and day-to-day administrative support.</p>
+<p>The employee demonstrated professional behavior, communication skills, and punctuality while handling assigned responsibilities.</p>
+<p>Overall performance and conduct were found satisfactory.</p>
+<p>This certificate is issued on request for official use.</p>`;
+const DEFAULT_DIGITAL_MARKETING_EXPERIENCE_TEMPLATE = `<p><b>Subject: Experience Certificate</b></p>
+<p>To Whomsoever It May Concern,</p>
+<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as a <b>Digital Marketing Executive</b> from <b>{{JOINING_DATE}}</b> to <b>{{LETTER_DATE_OR_TODAY}}</b>.</p>
+<p>During this period, the employee worked on campaign execution, content coordination, lead-focused promotions, and basic analytics support aligned with business objectives.</p>
+<p>The employee maintained professional conduct and delivered assigned tasks with dedication and teamwork.</p>
+<p>Overall performance and behavior were found satisfactory.</p>
+<p>This certificate is issued on request for official use.</p>`;
 
 const EmployeeManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -104,7 +148,7 @@ const EmployeeManagement: React.FC = () => {
   const [docFile, setDocFile] = useState<File | null>(null);
   const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
   const [letterheadTitle, setLetterheadTitle] = useState("");
-  const [docType, setDocType] = useState("ID_PROOF");
+  const [documentName, setDocumentName] = useState("");
   const [docTitle, setDocTitle] = useState("");
   const [docRemarks, setDocRemarks] = useState("");
   const [form, setForm] = useState<any>(emptyEmployeeForm);
@@ -134,6 +178,20 @@ const EmployeeManagement: React.FC = () => {
     signatoryRole: "Human Resources",
     body: "",
     letterDate: "",
+    closingLine: "Sincerely,",
+  });
+  const [letterDrafts, setLetterDrafts] = useState({
+    useStandardOffer: true,
+    useStandardExperience: true,
+    offerTemplate: DEFAULT_OFFER_TEMPLATE,
+    experienceTemplate: DEFAULT_EXPERIENCE_TEMPLATE,
+  });
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const [formatState, setFormatState] = useState({
+    bold: false,
+    underline: false,
+    italic: false,
+    bullet: false,
   });
 
   const stats = useMemo(() => {
@@ -197,6 +255,19 @@ const EmployeeManagement: React.FC = () => {
     h.setSelectedEmployee(null);
     setActiveTab("profile");
   };
+  const pickExperienceTemplateByRole = (designation: string, fallbackTemplate: string) => {
+    const normalized = String(designation || "").trim().toLowerCase();
+    if (normalized.includes("phlebotomist") || normalized.includes("phlebotomisnt")) {
+      return DEFAULT_PHLEBOTOMIST_EXPERIENCE_TEMPLATE;
+    }
+    if (normalized.includes("receptionist") || normalized.includes("reception")) {
+      return DEFAULT_RECEPTIONIST_EXPERIENCE_TEMPLATE;
+    }
+    if (normalized.includes("digital marketing") || normalized.includes("marketing")) {
+      return DEFAULT_DIGITAL_MARKETING_EXPERIENCE_TEMPLATE;
+    }
+    return fallbackTemplate || DEFAULT_EXPERIENCE_TEMPLATE;
+  };
   const generateLetterPdf = async (kind: "offer" | "experience") => {
     if (!selected) return null;
 
@@ -206,11 +277,32 @@ const EmployeeManagement: React.FC = () => {
     const fullName = `${selected.firstName || ""} ${selected.lastName || ""}`.trim();
     const joiningDate = selected.joiningDate ? new Date(selected.joiningDate).toLocaleDateString("en-IN") : "";
     const today = new Date().toLocaleDateString("en-IN");
-    const bodyText =
+    const replaceToken = (text: string, token: string, value: string) => text.split(token).join(value);
+    const fillTemplate = (tpl: string) => {
+      let out = tpl;
+      out = replaceToken(out, "{{EMPLOYEE_NAME}}", fullName || "-");
+      out = replaceToken(out, "{{DESIGNATION}}", selected.designation || "-");
+      out = replaceToken(out, "{{JOINING_DATE}}", joiningDate || "-");
+      out = replaceToken(out, "{{COMPANY_NAME}}", letterSettings.companyName || "-");
+      out = replaceToken(out, "{{LETTER_DATE}}", date || "-");
+      out = replaceToken(out, "{{TODAY_DATE}}", today);
+      out = replaceToken(out, "{{LETTER_DATE_OR_TODAY}}", date || today);
+      return out;
+    };
+    const fallbackBody =
       kind === "offer"
         ? `This is to formally offer employment to ${fullName} for the role of ${selected.designation}. Your joining date is ${joiningDate}.`
         : `This is to certify that ${fullName} worked with ${letterSettings.companyName} as ${selected.designation} from ${joiningDate} to ${today}.`;
-    const customBody = letterSettings.body.trim() || bodyText;
+    const resolvedExperienceTemplate = pickExperienceTemplateByRole(
+      selected.designation || "",
+      letterDrafts.experienceTemplate || DEFAULT_EXPERIENCE_TEMPLATE,
+    );
+    const customBody =
+      kind === "offer" && letterDrafts.useStandardOffer
+        ? fillTemplate(letterDrafts.offerTemplate || DEFAULT_OFFER_TEMPLATE)
+        : kind === "experience" && letterDrafts.useStandardExperience
+        ? fillTemplate(resolvedExperienceTemplate)
+        : letterSettings.body.trim() || fallbackBody;
 
     const pdfDoc = await PDFDocument.create();
     let page;
@@ -243,87 +335,139 @@ const EmployeeManagement: React.FC = () => {
 
     let font;
     let bold;
+    let italic;
+    let boldItalic;
     try {
-      font = await pdfDoc.embedFont("Times-Roman");
-      bold = await pdfDoc.embedFont("Times-Bold");
+      font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      bold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+      italic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+      boldItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
     } catch (_e) {
       // Safe fallback for environments where Times isn't available.
-      font = await pdfDoc.embedFont("Helvetica");
-      bold = await pdfDoc.embedFont("Helvetica-Bold");
+      font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      italic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+      boldItalic = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
     }
     const marginX = 48;
-    const startY = pageHeight - 150;
+    const bodyX = marginX;
+    const startY = pageHeight - 128;
     const maxWidth = pageWidth - marginX * 2;
     let y = startY;
 
-    const wrapText = (text: string, fSize = 13) => {
-      const words = text.split(/\s+/);
-      const lines: string[] = [];
-      let line = "";
-      const splitLongWord = (word: string) => {
-        const parts: string[] = [];
-        let chunk = "";
-        for (const ch of word) {
-          const candidate = chunk + ch;
-          if (font.widthOfTextAtSize(candidate, fSize) <= maxWidth) {
-            chunk = candidate;
-          } else {
-            if (chunk) parts.push(chunk);
-            chunk = ch;
-          }
-        }
-        if (chunk) parts.push(chunk);
-        return parts;
+    type RichRun = { text: string; bold?: boolean; italic?: boolean; underline?: boolean };
+    const pickFont = (r: RichRun) => {
+      if (r.bold && r.italic) return boldItalic;
+      if (r.bold) return bold;
+      if (r.italic) return italic;
+      return font;
+    };
+    const parseRichParagraphs = (input: string): RichRun[][] => {
+      const root = document.createElement("div");
+      root.innerHTML = input;
+      const paragraphs: RichRun[][] = [];
+      let current: RichRun[] = [];
+      const flush = () => {
+        if (current.length) paragraphs.push(current);
+        current = [];
       };
-      for (const w of words) {
-        if (font.widthOfTextAtSize(w, fSize) > maxWidth) {
-          const parts = splitLongWord(w);
-          for (const p of parts) {
-            const candidate = line ? `${line} ${p}` : p;
-            if (font.widthOfTextAtSize(candidate, fSize) <= maxWidth) {
-              line = candidate;
-            } else {
-              if (line) lines.push(line);
-              line = p;
-            }
+      const walk = (
+        node: Node,
+        style: { bold: boolean; italic: boolean; underline: boolean } = { bold: false, italic: false, underline: false },
+      ) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          let t = (node.textContent || "").replace(/\s+/g, " ");
+          if (current.length === 0) t = t.trimStart();
+          if (t) current.push({ text: t, bold: style.bold, italic: style.italic, underline: style.underline });
+          return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        const el = node as HTMLElement;
+        const tag = el.tagName.toLowerCase();
+        const nextStyle = {
+          bold: style.bold || tag === "b" || tag === "strong",
+          italic: style.italic || tag === "i" || tag === "em",
+          underline: style.underline || tag === "u",
+        };
+        if (tag === "br") {
+          flush();
+          return;
+        }
+        if (tag === "li") current.push({ text: "• ", bold: nextStyle.bold, italic: nextStyle.italic, underline: nextStyle.underline });
+        const children = Array.from(el.childNodes);
+        children.forEach((c) => walk(c, nextStyle));
+        if (["p", "div", "li", "h1", "h2", "h3"].includes(tag)) flush();
+      };
+      Array.from(root.childNodes).forEach((n) => walk(n));
+      flush();
+      return paragraphs.length ? paragraphs : [[{ text: fallbackBody }]];
+    };
+    const drawWrappedRuns = (runs: RichRun[], size = 12, lineGap = 17) => {
+      let line: RichRun[] = [];
+      let lineWidth = 0;
+      const drawLine = (items: RichRun[]) => {
+        let x = bodyX;
+        items.forEach((it) => {
+          const f = pickFont(it);
+          page.drawText(it.text, { x, y, size, font: f, color: rgb(0.1, 0.1, 0.1) });
+          const w = f.widthOfTextAtSize(it.text, size);
+          if (it.underline) {
+            page.drawLine({
+              start: { x, y: y - 1.8 },
+              end: { x: x + w, y: y - 1.8 },
+              thickness: 0.7,
+              color: rgb(0.1, 0.1, 0.1),
+            });
           }
-          continue;
+          x += w;
+        });
+        y -= lineGap;
+      };
+      const pushToken = (token: string, proto: RichRun) => {
+        if (!line.length && /^\s+$/.test(token)) return;
+        const chunk: RichRun = { ...proto, text: token };
+        const f = pickFont(chunk);
+        const w = f.widthOfTextAtSize(token, size);
+        if (lineWidth + w > maxWidth && line.length) {
+          drawLine(line);
+          line = [];
+          lineWidth = 0;
         }
-        const candidate = line ? `${line} ${w}` : w;
-        if (font.widthOfTextAtSize(candidate, fSize) <= maxWidth) line = candidate;
-        else {
-          if (line) lines.push(line);
-          line = w;
-        }
-      }
-      if (line) lines.push(line);
-      return lines;
+        line.push(chunk);
+        lineWidth += w;
+      };
+      runs.forEach((r) => {
+        const tokens = r.text.split(/(\s+)/).filter((t) => t.length > 0);
+        tokens.forEach((t) => pushToken(t, r));
+      });
+      if (line.length) drawLine(line);
     };
 
-    const title = kind === "offer" ? "Offer Letter" : "Experience Letter";
-    const titleSize = 34;
+    const title = (kind === "offer" ? "Offer Letter" : "Experience Letter").toUpperCase();
+    const titleSize = 22;
     const titleWidth = bold.widthOfTextAtSize(title, titleSize);
     const titleX = Math.max(marginX, (pageWidth - titleWidth) / 2);
     page.drawText(title, { x: titleX, y, size: titleSize, font: bold, color: rgb(0.1, 0.1, 0.1) });
-    y -= 32;
+    y -= 24;
     if (date) {
-      page.drawText(`Date: ${date}`, { x: marginX, y, size: 12, font, color: rgb(0.2, 0.2, 0.2) });
-      y -= 30;
+      page.drawText(`Date: ${date}`, { x: marginX, y, size: 11, font, color: rgb(0.2, 0.2, 0.2) });
+      y -= 18;
     } else {
-      y -= 10;
+      y -= 8;
     }
-    page.drawText(`Dear ${fullName},`, { x: marginX, y, size: 13, font, color: rgb(0.1, 0.1, 0.1) });
-    y -= 28;
-    wrapText(customBody, 13).forEach((line) => {
-      page.drawText(line, { x: marginX, y, size: 13, font, color: rgb(0.1, 0.1, 0.1) });
-      y -= 19;
-    });
+    page.drawText(`Dear ${fullName},`, { x: bodyX, y, size: 12, font, color: rgb(0.1, 0.1, 0.1) });
     y -= 20;
-    page.drawText("Regards,", { x: marginX, y, size: 13, font, color: rgb(0.1, 0.1, 0.1) });
-    y -= 44;
-    page.drawText(letterSettings.signatoryName, { x: marginX, y, size: 13, font: bold, color: rgb(0.1, 0.1, 0.1) });
-    y -= 18;
-    page.drawText(letterSettings.signatoryRole, { x: marginX, y, size: 12, font, color: rgb(0.1, 0.1, 0.1) });
+    const paragraphs = parseRichParagraphs(customBody);
+    paragraphs.forEach((runs) => {
+      drawWrappedRuns(runs, 12, 17);
+      y -= 4;
+    });
+    y -= 12;
+    page.drawText(letterSettings.closingLine || "Sincerely,", { x: bodyX, y, size: 12, font, color: rgb(0.1, 0.1, 0.1) });
+    y -= 30;
+    page.drawText(letterSettings.signatoryName, { x: bodyX, y, size: 12, font: bold, color: rgb(0.1, 0.1, 0.1) });
+    y -= 16;
+    page.drawText(letterSettings.signatoryRole, { x: bodyX, y, size: 11, font, color: rgb(0.1, 0.1, 0.1) });
 
     const bytes = await pdfDoc.save();
     return new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
@@ -363,6 +507,85 @@ const EmployeeManagement: React.FC = () => {
     a.remove();
     URL.revokeObjectURL(url);
   };
+
+  const validateEmployeeForm = () => {
+    const missingLabels = requiredFieldKeys
+      .filter((k) => !String(form[k] || "").trim())
+      .map((k) => fieldLabels[k]);
+    if (missingLabels.length) {
+      window.alert(`Please fill required fields: ${missingLabels.join(", ")}`);
+      return false;
+    }
+    if (!isValidMobile(String(form.mobile || ""))) {
+      window.alert("Mobile Number must be exactly 10 digits.");
+      return false;
+    }
+    if (!isValidEmail(String(form.email || ""))) {
+      window.alert("Please enter a valid email address.");
+      return false;
+    }
+    if (!String(form.joiningDate || "").trim()) {
+      window.alert("Joining Date is required.");
+      return false;
+    }
+    const numericFields = ["salaryBasic", "salaryHra", "salaryAllowances", "defaultDeductions"];
+    for (const key of numericFields) {
+      const v = Number(form[key] || 0);
+      if (!Number.isFinite(v) || v < 0) {
+        window.alert(`${fieldLabels[key] || key} cannot be negative.`);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const applyEditorCommand = (command: string, value?: string) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand(command, false, value);
+    setFormatState({
+      bold: document.queryCommandState("bold"),
+      underline: document.queryCommandState("underline"),
+      italic: document.queryCommandState("italic"),
+      bullet: document.queryCommandState("insertUnorderedList"),
+    });
+  };
+
+  const syncFormatState = () => {
+    if (!editorRef.current) return;
+    const sel = window.getSelection();
+    const anchor = sel?.anchorNode;
+    if (anchor && !editorRef.current.contains(anchor)) return;
+    setFormatState({
+      bold: document.queryCommandState("bold"),
+      underline: document.queryCommandState("underline"),
+      italic: document.queryCommandState("italic"),
+      bullet: document.queryCommandState("insertUnorderedList"),
+    });
+  };
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    if (editorRef.current.innerHTML !== (letterSettings.body || "")) {
+      editorRef.current.innerHTML = letterSettings.body || "<p><br/></p>";
+    }
+  }, [selected?.id]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LETTER_DRAFTS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setLetterDrafts((s) => ({
+        ...s,
+        ...parsed,
+      }));
+    } catch (_e) {
+      // ignore parse errors
+    }
+  }, []);
+  useEffect(() => {
+    localStorage.setItem(LETTER_DRAFTS_KEY, JSON.stringify(letterDrafts));
+  }, [letterDrafts]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#fee2e2,_#f8fafc_40%)] p-3 sm:p-6" style={{ paddingTop: "4rem", paddingBottom: "4rem" }}>
@@ -539,10 +762,23 @@ const EmployeeManagement: React.FC = () => {
                       <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                         {Object.entries(form).map(([k, v]) => (
                           <label key={k} className="text-xs text-gray-700">
-                            <div className="mb-1 font-semibold">{fieldLabels[k] || k}</div>
+                            <div className="mb-1 font-semibold">
+                              {fieldLabels[k] || k}
+                              {requiredFieldKeys.includes(k as (typeof requiredFieldKeys)[number]) ? (
+                                <span className="ml-1 text-red-600">*</span>
+                              ) : null}
+                            </div>
                             <input
                               value={String(v ?? "")}
-                              onChange={(e) => setForm((s: any) => ({ ...s, [k]: e.target.value }))}
+                              onChange={(e) =>
+                                setForm((s: any) => ({
+                                  ...s,
+                                  [k]:
+                                    k === "mobile" || k === "emergencyContact"
+                                      ? sanitizeMobile(e.target.value)
+                                      : e.target.value,
+                                }))
+                              }
                               placeholder={fieldLabels[k] || k}
                               type={k.toLowerCase().includes("date") ? "date" : k.toLowerCase().includes("salary") ? "number" : "text"}
                               className="w-full rounded-xl border px-3 py-2 text-sm"
@@ -552,7 +788,7 @@ const EmployeeManagement: React.FC = () => {
                         <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} className="rounded-xl border px-3 py-2 text-sm" />
                       </div>
                       <div className="flex gap-2">
-                        <button className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700" onClick={async () => { if (!selected?.id) { if (!String(form.firstName || "").trim() || !String(form.designation || "").trim() || !String(form.joiningDate || "").trim()) { window.alert("Please fill First Name, Designation, and Joining Date."); return; } const created = await createEmployee(form, photoFile); await h.loadEmployees(1); setIsOnboarding(false); if (created?.employee?.id) { await openEmployee(created.employee.id); } window.alert("Employee created successfully."); } else { await updateEmployee(selected.id, form, photoFile); await refreshSelected(); await h.loadEmployees(h.page); window.alert("Employee profile updated."); } }}>
+                        <button className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700" onClick={async () => { if (!validateEmployeeForm()) return; const payload = { ...form, mobile: sanitizeMobile(String(form.mobile || "")), emergencyContact: sanitizeMobile(String(form.emergencyContact || "")) }; if (!selected?.id) { const created = await createEmployee(payload, photoFile); await h.loadEmployees(1); setIsOnboarding(false); if (created?.employee?.id) { await openEmployee(created.employee.id); } window.alert("Employee created successfully."); } else { await updateEmployee(selected.id, payload, photoFile); await refreshSelected(); await h.loadEmployees(h.page); window.alert("Employee profile updated."); } }}>
                           <FaPlus className="mr-2 inline" /> {selected?.id ? "Save Profile" : "Create Employee"}
                         </button>
                         <button className="rounded-xl border px-4 py-2 text-sm font-semibold" onClick={() => { setForm(emptyEmployeeForm); h.setSelectedEmployee(null); setPhotoFile(null); }}>Clear Form</button>
@@ -567,19 +803,20 @@ const EmployeeManagement: React.FC = () => {
                         <div className="rounded-xl border p-3">
                           <div className="mb-2 font-semibold">Employee Documents</div>
                           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                            <select value={docType} onChange={(e) => setDocType(e.target.value)} className="rounded-lg border px-3 py-2 text-sm">
-                              <option>ID_PROOF</option>
-                              <option>PASSPORT_PHOTO</option>
-                              <option>OFFER_LETTER</option>
-                              <option>EXPERIENCE_LETTER</option>
-                              <option>SALARY_SLIP</option>
-                              <option>OTHER</option>
-                            </select>
+                            <label className="text-xs text-gray-700 md:col-span-2">
+                              <div className="mb-1 font-semibold">Document Category / Name<span className="ml-1 text-red-600">*</span></div>
+                              <input
+                                value={documentName}
+                                onChange={(e) => setDocumentName(e.target.value.toUpperCase())}
+                                placeholder="E.g. ID_PROOF, APPOINTMENT_LETTER, EDUCATION_CERTIFICATE"
+                                className="w-full rounded-lg border px-3 py-2 text-sm"
+                              />
+                            </label>
                             <input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="Document title" className="rounded-lg border px-3 py-2 text-sm" />
                             <input value={docRemarks} onChange={(e) => setDocRemarks(e.target.value)} placeholder="Remarks" className="rounded-lg border px-3 py-2 text-sm md:col-span-2" />
                             <input type="file" onChange={(e) => setDocFile(e.target.files?.[0] || null)} className="rounded-lg border px-3 py-2 text-sm md:col-span-2" />
                           </div>
-                          <button className="mt-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => { if (!docFile) return; await addEmployeeDocument(selected.id, { docType, title: docTitle, remarks: docRemarks }, docFile); setDocFile(null); setDocTitle(""); setDocRemarks(""); await refreshSelected(); }}>
+                          <button className="mt-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => { if (!docFile) return; if (!documentName.trim()) { window.alert("Please enter Document Category / Name."); return; } await addEmployeeDocument(selected.id, { docType: documentName.trim(), title: docTitle, remarks: docRemarks }, docFile); setDocFile(null); setDocTitle(""); setDocRemarks(""); setDocumentName(""); await refreshSelected(); }}>
                             <FaUpload className="mr-2 inline" /> Upload Document
                           </button>
                           <div className="mt-3 max-h-52 overflow-auto rounded-lg border">
@@ -604,7 +841,63 @@ const EmployeeManagement: React.FC = () => {
                             <input type="date" value={letterSettings.letterDate} onChange={(e) => setLetterSettings((s) => ({ ...s, letterDate: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
                             <input value={letterSettings.signatoryName} onChange={(e) => setLetterSettings((s) => ({ ...s, signatoryName: e.target.value }))} placeholder="Signatory Name" className="rounded-lg border px-3 py-2 text-sm" />
                             <input value={letterSettings.signatoryRole} onChange={(e) => setLetterSettings((s) => ({ ...s, signatoryRole: e.target.value }))} placeholder="Signatory Role" className="rounded-lg border px-3 py-2 text-sm" />
-                            <textarea value={letterSettings.body} onChange={(e) => setLetterSettings((s) => ({ ...s, body: e.target.value }))} placeholder="Custom letter body (optional)" className="min-h-[90px] rounded-lg border px-3 py-2 text-sm" />
+                            <input value={letterSettings.closingLine} onChange={(e) => setLetterSettings((s) => ({ ...s, closingLine: e.target.value }))} placeholder="Closing Line (e.g. Sincerely,)" className="rounded-lg border px-3 py-2 text-sm" />
+                            <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-2 text-xs text-indigo-800">
+                              Standard templates are saved and reused for all employees.
+                            </div>
+                            <label className="flex items-center gap-2 text-xs">
+                              <input type="checkbox" checked={letterDrafts.useStandardOffer} onChange={(e) => setLetterDrafts((s) => ({ ...s, useStandardOffer: e.target.checked }))} />
+                              Use Standard Offer Template
+                            </label>
+                            <textarea value={letterDrafts.offerTemplate} onChange={(e) => setLetterDrafts((s) => ({ ...s, offerTemplate: e.target.value }))} className="min-h-[90px] rounded-lg border px-3 py-2 text-sm" placeholder="Standard Offer Template (supports placeholders like {{EMPLOYEE_NAME}}, {{DESIGNATION}}, {{JOINING_DATE}})" />
+                            <label className="flex items-center gap-2 text-xs">
+                              <input type="checkbox" checked={letterDrafts.useStandardExperience} onChange={(e) => setLetterDrafts((s) => ({ ...s, useStandardExperience: e.target.checked }))} />
+                              Use Standard Experience Template
+                            </label>
+                            <textarea value={letterDrafts.experienceTemplate} onChange={(e) => setLetterDrafts((s) => ({ ...s, experienceTemplate: e.target.value }))} className="min-h-[90px] rounded-lg border px-3 py-2 text-sm" placeholder="Standard Experience Template" />
+                            <button type="button" className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-white" onClick={() => setLetterDrafts({ useStandardOffer: true, useStandardExperience: true, offerTemplate: DEFAULT_OFFER_TEMPLATE, experienceTemplate: DEFAULT_EXPERIENCE_TEMPLATE })}>
+                              Reset Standard Templates
+                            </button>
+                            <label className="text-xs text-gray-700">
+                              <div className="mb-1 font-semibold">Custom Letter Body</div>
+                              <div className="mb-2 flex flex-wrap gap-2">
+                                <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.bold ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("bold")}>Bold</button>
+                                <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.underline ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("underline")}>Underline</button>
+                                <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.italic ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("italic")}>Italic</button>
+                                <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.bullet ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("insertUnorderedList")}>Bullet</button>
+                                <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => applyEditorCommand("removeFormat")}>Clear</button>
+                              </div>
+                              <div
+                                ref={editorRef}
+                                contentEditable
+                                suppressContentEditableWarning
+                                className="min-h-[130px] rounded-lg border px-3 py-2 text-sm outline-none"
+                                onInput={(e) =>
+                                  setLetterSettings((s) => ({
+                                    ...s,
+                                    body: (e.target as HTMLDivElement).innerHTML,
+                                  }))
+                                }
+                                onKeyUp={syncFormatState}
+                                onMouseUp={syncFormatState}
+                                onFocus={() =>
+                                  setFormatState({
+                                    bold: false,
+                                    underline: false,
+                                    italic: false,
+                                    bullet: false,
+                                  })
+                                }
+                              />
+                              <div
+                                className="mt-2 min-h-[80px] rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                                dangerouslySetInnerHTML={{
+                                  __html:
+                                    letterSettings.body?.trim() ||
+                                    "<span style='color:#6b7280'>No custom content added yet.</span>",
+                                }}
+                              />
+                            </label>
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2">
                             <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => openPrintableLetter("offer")}><FaPrint className="mr-2 inline" /> Offer Letter</button>
@@ -619,7 +912,7 @@ const EmployeeManagement: React.FC = () => {
 
                   {selected && activeTab === "attendance" ? (
                     <div className="space-y-3">
-                      <div className="text-sm font-bold text-red-700">Attendance (Backdated Supported)</div>
+                      <div className="text-sm font-bold text-red-700">Attendance (Admin Backdated Control)</div>
                       <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2">
                         <div className="text-xs text-indigo-700">
                           Employee Self-Attendance Link:{" "}
@@ -643,7 +936,6 @@ const EmployeeManagement: React.FC = () => {
                               await markSelfAttendance({
                                 employeeCode: selected.employeeCode,
                                 mobile: selected.mobile,
-                                date: attendance.date,
                                 status: attendance.status as any,
                                 checkIn: attendance.checkIn,
                                 checkOut: attendance.checkOut,
@@ -662,7 +954,7 @@ const EmployeeManagement: React.FC = () => {
                         <input value={attendance.notes} onChange={(e) => setAttendance((s) => ({ ...s, notes: e.target.value }))} placeholder="Notes" className="rounded-lg border px-3 py-2 text-sm" />
                         <input value={attendance.checkIn} onChange={(e) => setAttendance((s) => ({ ...s, checkIn: e.target.value }))} placeholder="Check-in HH:mm" className="rounded-lg border px-3 py-2 text-sm" />
                         <input value={attendance.checkOut} onChange={(e) => setAttendance((s) => ({ ...s, checkOut: e.target.value }))} placeholder="Check-out HH:mm" className="rounded-lg border px-3 py-2 text-sm" />
-                        <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => { await upsertAttendance(selected.id, { date: attendance.date, status: attendance.status, checkIn: attendance.checkIn, checkOut: attendance.checkOut, notes: attendance.notes }); await h.loadAttendance(selected.id, attendance.from, attendance.to); }}>Save Attendance</button>
+                        <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => { if (!attendance.date) { window.alert("Attendance Date is required."); return; } if (!isValidTimeHHmm(attendance.checkIn) || !isValidTimeHHmm(attendance.checkOut)) { window.alert("Check-in/Check-out must be in HH:mm format."); return; } await upsertAttendance(selected.id, { date: attendance.date, status: attendance.status, checkIn: attendance.checkIn, checkOut: attendance.checkOut, notes: attendance.notes }); await h.loadAttendance(selected.id, attendance.from, attendance.to); }}>Save Attendance</button>
                       </div>
 
                       <div className="grid grid-cols-1 gap-2 rounded-xl border p-3 md:grid-cols-4">
@@ -682,21 +974,25 @@ const EmployeeManagement: React.FC = () => {
                     <div className="space-y-3">
                       <div className="text-sm font-bold text-red-700">Payroll & Salary Slip Generator</div>
                       <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                        Keep deductions as zero for full salary. If deduction exists, add amount + title/remark.
+                        Full salary mode is default. Add a deduction amount only if you actually want to deduct.
                       </div>
                       <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                        <input type="number" value={salary.month} onChange={(e) => setSalary((s) => ({ ...s, month: Number(e.target.value) }))} placeholder="Month (1-12)" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input type="number" value={salary.year} onChange={(e) => setSalary((s) => ({ ...s, year: Number(e.target.value) }))} placeholder="Year" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input type="number" value={salary.deductionExtra} onChange={(e) => setSalary((s) => ({ ...s, deductionExtra: Number(e.target.value) }))} placeholder="Deduction Amount (optional)" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input value={salary.deductionTitle} onChange={(e) => setSalary((s) => ({ ...s, deductionTitle: e.target.value }))} placeholder="Deduction Title (optional)" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input value={salary.deductionRemark} onChange={(e) => setSalary((s) => ({ ...s, deductionRemark: e.target.value }))} placeholder="Deduction Remark (optional)" className="rounded-lg border px-3 py-2 text-sm" />
+                        <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Salary Month<span className="ml-1 text-red-600">*</span></div><input type="number" min={1} max={12} value={salary.month} onChange={(e) => setSalary((s) => ({ ...s, month: Number(e.target.value) }))} placeholder="1 to 12" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                        <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Salary Year<span className="ml-1 text-red-600">*</span></div><input type="number" min={2000} max={2100} value={salary.year} onChange={(e) => setSalary((s) => ({ ...s, year: Number(e.target.value) }))} placeholder="YYYY" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                        <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Manual Deduction Amount (Optional)</div><input type="number" min={0} value={salary.deductionExtra} onChange={(e) => setSalary((s) => ({ ...s, deductionExtra: Number(e.target.value) }))} placeholder="0 for full salary" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                        <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Deduction Title</div><input value={salary.deductionTitle} onChange={(e) => setSalary((s) => ({ ...s, deductionTitle: e.target.value }))} placeholder="E.g. LATE COMING, PENALTY" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                        <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Deduction Remark</div><input value={salary.deductionRemark} onChange={(e) => setSalary((s) => ({ ...s, deductionRemark: e.target.value }))} placeholder="Reason for deduction" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
                         <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => {
+                          if (salary.month < 1 || salary.month > 12) { window.alert("Month must be between 1 and 12."); return; }
+                          if (salary.year < 2000 || salary.year > 2100) { window.alert("Please enter a valid year."); return; }
+                          if (salary.deductionExtra < 0) { window.alert("Deduction amount cannot be negative."); return; }
                           await generateSalarySlip(selected.id, {
                             month: salary.month,
                             year: salary.year,
                             additions: 0,
                             bonus: 0,
-                            deductionExtra: salary.deductionExtra,
+                            deductionExtra: 0,
+                            applyAttendanceDeduction: false,
                             deductionLines:
                               salary.deductionExtra > 0
                                 ? [
@@ -730,18 +1026,3 @@ const EmployeeManagement: React.FC = () => {
 };
 
 export default EmployeeManagement;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

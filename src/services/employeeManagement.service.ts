@@ -133,6 +133,7 @@ export async function generateSalarySlip(
     additions?: number;
     bonus?: number;
     deductionExtra?: number;
+    applyAttendanceDeduction?: boolean;
     deductionLines?: Array<{ label: string; remark?: string; amount: number }>;
   },
 ) {

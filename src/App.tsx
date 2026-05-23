@@ -40,6 +40,8 @@ const OnlineSalesHistory = lazy(() => import("./pages/OnlineSalesHistory/OnlineS
 const OfficeExpenses = lazy(() => import("./pages/OfficeExpenses/OfficeExpenses"))
 const EmployeeManagement = lazy(() => import("./pages/EmployeeManagement/EmployeeManagement"))
 const EmployeeAttendance = lazy(() => import("./pages/EmployeeAttendance/EmployeeAttendance"))
+const PushNotifications = lazy(() => import("./pages/PushNotifications/PushNotifications"))
+const BlogsManagement = lazy(() => import("./pages/BlogsManagement/BlogsManagement"))
 
 const ReportGenerator = lazy(() => import("./pages/ReportGenerator/ReportGenerator"))
 
@@ -80,6 +82,8 @@ const PATHS = {
   OFFICE_EXPENSES: "/office-expenses",
   EMPLOYEE_MANAGEMENT: "/employee-management",
   EMPLOYEE_ATTENDANCE: "/employee-attendance",
+  PUSH_NOTIFICATIONS: "/push-notifications",
+  BLOGS_MANAGEMENT: "/blogs-management",
 };
 
 const App = () => {
@@ -293,6 +297,34 @@ const App = () => {
               <EmployeeAttendance />
             </Suspense>
           ),
+        },
+        {
+          path: PATHS.PUSH_NOTIFICATIONS,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.PUSH_NOTIFICATIONS,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <PushNotifications />
+                </Suspense>
+              ),
+            },
+          ],
+        },
+        {
+          path: PATHS.BLOGS_MANAGEMENT,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: PATHS.BLOGS_MANAGEMENT,
+              element: (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <BlogsManagement />
+                </Suspense>
+              ),
+            },
+          ],
         },
         {
           path: PATHS.ONLINE_SALES_HISTORY,
