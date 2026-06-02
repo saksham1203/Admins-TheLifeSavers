@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import {
@@ -99,44 +100,82 @@ const fieldLabels: Record<string, string> = {
 };
 const requiredFieldKeys = ["firstName", "lastName", "mobile", "designation", "joiningDate"] as const;
 const LETTER_DRAFTS_KEY = "employee_letter_standard_drafts_v1";
-const DEFAULT_OFFER_TEMPLATE = `<p><b>Subject: Offer of Employment</b></p>
-<p>Dear <b>{{EMPLOYEE_NAME}}</b>,</p>
-<p>We are pleased to offer you employment with <b>{{COMPANY_NAME}}</b> for the position of <b>{{DESIGNATION}}</b>. This offer is made based on your profile, discussions, and organizational requirements.</p>
-<p>Your date of joining will be <b>{{JOINING_DATE}}</b>. You will be placed under the applicable company policies, code of conduct, and operational guidelines issued from time to time.</p>
-<p>Your roles and responsibilities will include duties relevant to your designation and any additional assignments reasonably delegated by reporting management in the interest of business operations.</p>
-<p>This offer is subject to successful completion of onboarding formalities, submission and verification of required documents, and adherence to internal compliance standards.</p>
-<p>By accepting this offer and joining the organization, you confirm that all information and documents provided by you are true and accurate to the best of your knowledge.</p>
-<p>Kindly sign and acknowledge this offer as confirmation of your acceptance.</p>`;
+const DEFAULT_OFFER_TEMPLATE = `<p>Dear <b>{{CANDIDATE_NAME}}</b>,</p>
+<p>We are pleased to offer you the position of <b>{{DESIGNATION}}</b> with <b>{{COMPANY_NAME}}</b></p>
+<p>Your joining date will be <b>{{JOINING_DATE}}</b>.</p>
+<p>
+You are being appointed as <b>{{DESIGNATION}}</b> in the <b>{{DEPARTMENT_NAME}}</b> department at <b>{{COMPANY_NAME}}</b>. 
+You will report to <b>{{MANAGER_NAME}}</b> and will be based at <b>{{WORK_LOCATION}}</b>. 
+In this role, you will be responsible for performing your duties diligently and adhering to company policies and standards. 
+Your monthly remuneration will be <b>{{MONTHLY_SALARY}}</b>, along with applicable benefits as per company norms.
+</p>
+<p>You will be responsible for sample collection, patient handling, and ensuring adherence to medical and safety protocols as per company standards.</p>
+<p>This offer is subject to the terms and conditions mentioned in <b>Annexure A (Page 2)</b> of this letter.</p>
+<p>Kindly sign and return a copy of this letter as a token of your acceptance.</p>
+<p>We look forward to welcoming you to our team and wish you a successful journey with us.</p>
+<p>Warm regards,</p>
+<p><b>{{YOUR_NAME}}</b><br/>{{YOUR_DESIGNATION}}<br/>{{COMPANY_NAME}}</p>
+<p><b>Acceptance of Offer</b></p>
+<p>I, <b>{{CANDIDATE_NAME}}</b>, accept the terms of employment mentioned in this letter.</p>
+<p>Signature: ____________________</p>
+<p>Date: ____________________</p>
+<p>{{PAGE_BREAK}}</p>
 
-const DEFAULT_EXPERIENCE_TEMPLATE = `<p><b>Subject: Experience Certificate</b></p>
-<p>To Whomsoever It May Concern,</p>
-<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as <b>{{DESIGNATION}}</b> from <b>{{JOINING_DATE}}</b> to <b>{{LETTER_DATE_OR_TODAY}}</b>.</p>
-<p>During the tenure, the employee was associated with assigned responsibilities and supported day-to-day operations in line with organizational standards and reporting requirements.</p>
-<p>Key responsibilities handled included service execution, process adherence, coordination with internal stakeholders, and timely completion of assigned duties as per role requirements.</p>
-<p>The employee demonstrated a professional attitude, punctuality, and cooperative conduct with colleagues, reporting managers, and clients.</p>
-<p>Overall performance and behavior were found to be satisfactory during the period of employment.</p>
-<p>This certificate is being issued upon request for official and professional purposes.</p>`;
-const DEFAULT_PHLEBOTOMIST_EXPERIENCE_TEMPLATE = `<p><b>Subject: Experience Certificate</b></p>
-<p>To Whomsoever It May Concern,</p>
-<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as a <b>Phlebotomist</b> from <b>{{JOINING_DATE}}</b> to <b>{{LETTER_DATE_OR_TODAY}}</b>.</p>
-<p>During this period, the employee was responsible for patient interaction, sample collection, labeling, maintaining hygiene standards, following safety protocols, and coordinating with diagnostics operations.</p>
-<p>The employee maintained professional conduct and carried out assigned duties diligently in accordance with operational guidelines.</p>
-<p>Overall performance and behavior were found satisfactory.</p>
-<p>This certificate is issued on request for official use.</p>`;
-const DEFAULT_RECEPTIONIST_EXPERIENCE_TEMPLATE = `<p><b>Subject: Experience Certificate</b></p>
-<p>To Whomsoever It May Concern,</p>
-<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as a <b>Receptionist</b> from <b>{{JOINING_DATE}}</b> to <b>{{LETTER_DATE_OR_TODAY}}</b>.</p>
-<p>During this period, the employee was responsible for front desk operations, visitor management, call coordination, appointment scheduling, and day-to-day administrative support.</p>
-<p>The employee demonstrated professional behavior, communication skills, and punctuality while handling assigned responsibilities.</p>
-<p>Overall performance and conduct were found satisfactory.</p>
-<p>This certificate is issued on request for official use.</p>`;
-const DEFAULT_DIGITAL_MARKETING_EXPERIENCE_TEMPLATE = `<p><b>Subject: Experience Certificate</b></p>
-<p>To Whomsoever It May Concern,</p>
-<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as a <b>Digital Marketing Executive</b> from <b>{{JOINING_DATE}}</b> to <b>{{LETTER_DATE_OR_TODAY}}</b>.</p>
-<p>During this period, the employee worked on campaign execution, content coordination, lead-focused promotions, and basic analytics support aligned with business objectives.</p>
-<p>The employee maintained professional conduct and delivered assigned tasks with dedication and teamwork.</p>
-<p>Overall performance and behavior were found satisfactory.</p>
-<p>This certificate is issued on request for official use.</p>`;
+<p><b>Annexure A - Terms & Conditions of Employment</b></p>
+<p><b>1. Probation Period</b><br/>
+You will be on probation for <b>{{PROBATION_PERIOD}}</b>. Your performance and conduct will be reviewed during this period, and confirmation will be subject to satisfactory performance.</p>
+<p><b>2. Working Hours & Deployment</b><br/>
+Your working hours will be <b>{{WORKING_HOURS}}</b>. You may be required to work in shifts, on weekends, or travel for home sample collection and other field duties as per business requirements.</p>
+<p><b>3. Duties & Responsibilities</b><br/>
+You are required to perform your duties responsibly and ensure adherence to all medical and operational standards. Your responsibilities include:</p>
+<ul>
+  <li>Collection of blood and other samples using standard procedures</li>
+  <li>Ensuring patient identification and comfort during procedures</li>
+  <li>Proper labeling, handling, storage, and transportation of samples</li>
+  <li>Maintaining accurate records and documentation</li>
+  <li>Following hygiene, safety, and infection control protocols</li>
+  <li>Maintaining professional conduct with patients and staff</li>
+</ul>
+<p><b>4. Compensation & Benefits</b><br/>
+You will be paid a monthly salary subject to statutory deductions. You may also be eligible for incentives, reimbursements, or additional benefits as per company policy, which may be revised from time to time.</p>
+<p><b>5. Confidentiality</b><br/>
+You shall maintain strict confidentiality of all patient information, company data, and internal processes. Any breach of confidentiality may result in disciplinary action, including termination.</p>
+<p><b>6. Code of Conduct</b><br/>
+You are expected to maintain discipline, integrity, and ethical behavior at all times. Any misconduct, negligence, or violation of company policies will be subject to disciplinary action.</p>
+<p><b>7. Attendance & Leave</b><br/>
+You are required to maintain regular attendance. Leave entitlement will be <b>{{MONTHLY_LEAVES}}</b> per month and must be approved by your reporting manager.</p>
+<p><b>8. Safety & Compliance</b><br/>
+You must follow all safety guidelines, infection control measures, and healthcare compliance protocols. Use of protective equipment and adherence to safety standards is mandatory.</p>
+<p><b>9. Company Property</b><br/>
+Any company assets provided to you must be used responsibly and returned upon termination or as required by the company.</p>
+<p><b>10. Termination</b><br/>
+Either party may terminate employment by giving <b>{{NOTICE_PERIOD}}</b> notice or salary in lieu thereof. Immediate termination may occur in case of misconduct or policy violations.</p>
+<p><b>11. General Terms</b><br/>
+Your employment is subject to verification of documents and compliance with company policies. The company reserves the right to modify policies as necessary.</p>
+<p><b>Declaration</b></p>
+<p>I, <b>{{CANDIDATE_NAME}}</b>, confirm that I have read and understood the above terms and agree to abide by them.</p>
+<p>Signature: ____________________</p>
+<p>Date: ____________________</p>`;
+
+const DEFAULT_EXPERIENCE_TEMPLATE = `<p><b>TO WHOMSOEVER IT MAY CONCERN</b></p>
+<p>This is to certify that <b>{{EMPLOYEE_NAME}}</b> was employed with <b>{{COMPANY_NAME}}</b> as a <b>Phlebotomist</b> from <b>{{START_DATE}}</b> to <b>{{END_DATE}}</b>.</p>
+<p>During their tenure with us, they were responsible for:</p>
+<ul>
+  <li>Collecting blood samples from patients using proper venipuncture techniques</li>
+  <li>Ensuring correct labeling, storage, and transportation of samples</li>
+  <li>Maintaining accurate patient records and documentation</li>
+  <li>Following hygiene, safety, and infection control protocols</li>
+  <li>Coordinating with laboratory staff for timely processing of samples</li>
+</ul>
+<p><b>{{EMPLOYEE_NAME}}</b> has demonstrated good technical skills, professionalism, and dedication toward patient care. They maintained a high level of accuracy and ensured patient comfort during sample collection.</p>
+<p>Their conduct during the period of employment was found to be <b>{{CONDUCT_RATING}}</b>, and we found them to be a sincere and responsible team member.</p>
+<p>We wish them success in all their future endeavors.</p>
+<p>{{CLOSING_LINE}}</p>
+<p><b>{{AUTHORIZED_SIGNATORY_NAME}}</b><br/>{{AUTHORIZED_SIGNATORY_DESIGNATION}}<br/>{{COMPANY_NAME}}</p>
+<p>{{COMPANY_SEAL}}</p>`;
+const DEFAULT_PHLEBOTOMIST_EXPERIENCE_TEMPLATE = DEFAULT_EXPERIENCE_TEMPLATE;
+
+const pickExperienceTemplateByRole = (_designation: string) => DEFAULT_EXPERIENCE_TEMPLATE;
 
 const EmployeeManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -176,6 +215,24 @@ const EmployeeManagement: React.FC = () => {
     companyAddress: "",
     signatoryName: "HR Department",
     signatoryRole: "Human Resources",
+    location: "",
+    managerName: "",
+    offerDepartmentName: "",
+    offerMonthlySalary: "",
+    monthlyLeaves: "",
+    offerJoiningDate: "",
+    incentives: "",
+    benefits: "",
+    workingHours: "",
+    weeklyOffs: "",
+    probationPeriod: "3/6 months",
+    noticePeriod: "",
+    acceptanceLastDate: "",
+    contactDetails: "",
+    conductRating: "Good",
+    companySeal: "Company Seal",
+    experienceStartDate: "",
+    experienceEndDate: "",
     body: "",
     letterDate: "",
     closingLine: "Sincerely,",
@@ -184,7 +241,7 @@ const EmployeeManagement: React.FC = () => {
     useStandardOffer: true,
     useStandardExperience: true,
     offerTemplate: DEFAULT_OFFER_TEMPLATE,
-    experienceTemplate: DEFAULT_EXPERIENCE_TEMPLATE,
+    experienceTemplate: DEFAULT_PHLEBOTOMIST_EXPERIENCE_TEMPLATE,
   });
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [formatState, setFormatState] = useState({
@@ -193,6 +250,8 @@ const EmployeeManagement: React.FC = () => {
     italic: false,
     bullet: false,
   });
+  const [letterModalOpen, setLetterModalOpen] = useState(false);
+  const [letterModalTab, setLetterModalTab] = useState<"offer" | "experience">("offer");
 
   const stats = useMemo(() => {
     const total = h.employees.length;
@@ -204,6 +263,7 @@ const EmployeeManagement: React.FC = () => {
 
   const selected = h.selectedEmployee as (Employee & { documents?: any[] }) | null;
   const selfAttendanceLink = `${window.location.origin}/employee-attendance`;
+  const canUsePortal = typeof document !== "undefined";
 
   const hydrateFormFromEmployee = (emp: any) => {
     setForm({
@@ -255,59 +315,115 @@ const EmployeeManagement: React.FC = () => {
     h.setSelectedEmployee(null);
     setActiveTab("profile");
   };
-  const pickExperienceTemplateByRole = (designation: string, fallbackTemplate: string) => {
-    const normalized = String(designation || "").trim().toLowerCase();
-    if (normalized.includes("phlebotomist") || normalized.includes("phlebotomisnt")) {
-      return DEFAULT_PHLEBOTOMIST_EXPERIENCE_TEMPLATE;
-    }
-    if (normalized.includes("receptionist") || normalized.includes("reception")) {
-      return DEFAULT_RECEPTIONIST_EXPERIENCE_TEMPLATE;
-    }
-    if (normalized.includes("digital marketing") || normalized.includes("marketing")) {
-      return DEFAULT_DIGITAL_MARKETING_EXPERIENCE_TEMPLATE;
-    }
-    return fallbackTemplate || DEFAULT_EXPERIENCE_TEMPLATE;
-  };
   const generateLetterPdf = async (kind: "offer" | "experience") => {
     if (!selected) return null;
 
-    const date = letterSettings.letterDate
-      ? new Date(letterSettings.letterDate).toLocaleDateString("en-IN")
-      : "";
+    const toLongDate = (d?: string | Date | null) => {
+      if (!d) return "";
+      const dt = typeof d === "string" ? new Date(d) : d;
+      if (Number.isNaN(dt.getTime())) return "";
+      const day = dt.getDate();
+      const suffix = day % 10 === 1 && day !== 11 ? "st" : day % 10 === 2 && day !== 12 ? "nd" : day % 10 === 3 && day !== 13 ? "rd" : "th";
+      const month = dt.toLocaleString("en-IN", { month: "long" });
+      return `${day}${suffix} ${month} ${dt.getFullYear()}`;
+    };
+    const date = letterSettings.letterDate ? toLongDate(letterSettings.letterDate) : "";
     const fullName = `${selected.firstName || ""} ${selected.lastName || ""}`.trim();
-    const joiningDate = selected.joiningDate ? new Date(selected.joiningDate).toLocaleDateString("en-IN") : "";
-    const today = new Date().toLocaleDateString("en-IN");
-    const replaceToken = (text: string, token: string, value: string) => text.split(token).join(value);
-    const fillTemplate = (tpl: string) => {
-      let out = tpl;
-      out = replaceToken(out, "{{EMPLOYEE_NAME}}", fullName || "-");
-      out = replaceToken(out, "{{DESIGNATION}}", selected.designation || "-");
-      out = replaceToken(out, "{{JOINING_DATE}}", joiningDate || "-");
-      out = replaceToken(out, "{{COMPANY_NAME}}", letterSettings.companyName || "-");
-      out = replaceToken(out, "{{LETTER_DATE}}", date || "-");
-      out = replaceToken(out, "{{TODAY_DATE}}", today);
-      out = replaceToken(out, "{{LETTER_DATE_OR_TODAY}}", date || today);
+    const joiningDate = letterSettings.offerJoiningDate
+      ? toLongDate(letterSettings.offerJoiningDate)
+      : selected.joiningDate
+      ? toLongDate(selected.joiningDate)
+      : "";
+    const today = toLongDate(new Date());
+    const experienceStartDate = letterSettings.experienceStartDate ? toLongDate(letterSettings.experienceStartDate) : joiningDate;
+    const experienceEndDate = letterSettings.experienceEndDate ? toLongDate(letterSettings.experienceEndDate) : date || today;
+    const fmtValue = (v: unknown, emptyFallback = "N/A") => {
+      const s = String(v ?? "").trim();
+      return s ? s : emptyFallback;
+    };
+    const monthlyCtc =
+      Number(selected.salaryBasic || 0) + Number(selected.salaryHra || 0) + Number(selected.salaryAllowances || 0);
+    const monthlySalaryAuto = monthlyCtc > 0 ? `Rs${monthlyCtc.toLocaleString("en-IN")}` : "N/A";
+
+    const tokenValues: Record<string, string> = {
+      EMPLOYEE_NAME: fmtValue(fullName),
+      CANDIDATE_NAME: fmtValue(fullName),
+      DESIGNATION: fmtValue(selected.designation),
+      DEPARTMENT_NAME: fmtValue(letterSettings.offerDepartmentName || selected.department),
+      JOINING_DATE: fmtValue(joiningDate),
+      START_DATE: fmtValue(experienceStartDate),
+      END_DATE: fmtValue(experienceEndDate),
+      COMPANY_NAME: fmtValue(letterSettings.companyName),
+      LETTER_DATE: fmtValue(date),
+      TODAY_DATE: fmtValue(today),
+      LETTER_DATE_OR_TODAY: fmtValue(date || today),
+      LOCATION: fmtValue(letterSettings.location || letterSettings.companyAddress),
+      WORK_LOCATION: fmtValue(letterSettings.location || letterSettings.companyAddress),
+      MANAGER_NAME: fmtValue(letterSettings.managerName || letterSettings.signatoryName),
+      MONTHLY_SALARY: fmtValue(letterSettings.offerMonthlySalary || monthlySalaryAuto),
+      MONTHLY_LEAVES: fmtValue(letterSettings.monthlyLeaves || "N/A"),
+      INCENTIVES: fmtValue(letterSettings.incentives, "N/A"),
+      BENEFITS: fmtValue(letterSettings.benefits, "Nil"),
+      WORKING_HOURS: fmtValue(letterSettings.workingHours),
+      WEEKLY_OFFS: fmtValue(letterSettings.weeklyOffs),
+      PROBATION_PERIOD: fmtValue(letterSettings.probationPeriod),
+      NOTICE_PERIOD: fmtValue(letterSettings.noticePeriod),
+      LAST_DATE: fmtValue(letterSettings.acceptanceLastDate),
+      YOUR_NAME: fmtValue(letterSettings.signatoryName),
+      YOUR_DESIGNATION: fmtValue(letterSettings.signatoryRole),
+      AUTHORIZED_SIGNATORY_NAME: fmtValue(letterSettings.signatoryName),
+      AUTHORIZED_SIGNATORY_DESIGNATION: fmtValue(letterSettings.signatoryRole),
+      CONTACT_DETAILS: fmtValue(letterSettings.contactDetails),
+      CONDUCT_RATING: fmtValue(letterSettings.conductRating, "Good"),
+      COMPANY_SEAL: fmtValue(letterSettings.companySeal, "Company Seal"),
+      CLOSING_LINE: fmtValue(letterSettings.closingLine, "Sincerely,"),
+      PAGE_BREAK: "__PAGE_BREAK__",
+    };
+    const replaceToken = (text: string, key: string, value: string) => {
+      let out = text;
+      out = out.split(`{{${key}}}`).join(value);
+      out = out.split(`[${key}]`).join(value);
       return out;
+    };
+    const fillTemplate = (tpl: string) => {
+      let out = tpl || "";
+      Object.entries(tokenValues).forEach(([key, value]) => {
+        out = replaceToken(out, key, value);
+      });
+      return out;
+    };
+    const sanitizeStandardTemplate = (tpl: string, letterKind: "offer" | "experience") => {
+      let out = tpl || "";
+      // Remove legacy Subject line if previously saved in localStorage drafts.
+      out = out.replace(/<p>\s*<b>\s*Subject:[\s\S]*?<\/b>\s*<\/p>/gi, "");
+      if (letterKind === "offer") {
+        // Greeting is drawn separately in PDF; remove template-level greeting to avoid duplicate Dear line.
+        out = out.replace(/<p>\s*Dear[\s\S]*?<\/p>/i, "");
+      }
+      if (letterKind === "experience") {
+        // Ensure employee name stays bold in the core certification sentence.
+        out = out.replace(/This is to certify that\s*(?!<b>)\s*\{\{EMPLOYEE_NAME\}\}/i, "This is to certify that <b>{{EMPLOYEE_NAME}}</b>");
+      }
+      return out.trim();
     };
     const fallbackBody =
       kind === "offer"
         ? `This is to formally offer employment to ${fullName} for the role of ${selected.designation}. Your joining date is ${joiningDate}.`
         : `This is to certify that ${fullName} worked with ${letterSettings.companyName} as ${selected.designation} from ${joiningDate} to ${today}.`;
-    const resolvedExperienceTemplate = pickExperienceTemplateByRole(
-      selected.designation || "",
-      letterDrafts.experienceTemplate || DEFAULT_EXPERIENCE_TEMPLATE,
-    );
+    const resolvedExperienceTemplate = pickExperienceTemplateByRole(selected.designation || "");
     const customBody =
       kind === "offer" && letterDrafts.useStandardOffer
-        ? fillTemplate(letterDrafts.offerTemplate || DEFAULT_OFFER_TEMPLATE)
+        ? fillTemplate(sanitizeStandardTemplate(letterDrafts.offerTemplate || DEFAULT_OFFER_TEMPLATE, "offer"))
         : kind === "experience" && letterDrafts.useStandardExperience
-        ? fillTemplate(resolvedExperienceTemplate)
+        ? fillTemplate(sanitizeStandardTemplate(resolvedExperienceTemplate, "experience"))
         : letterSettings.body.trim() || fallbackBody;
 
     const pdfDoc = await PDFDocument.create();
-    let page;
+    let page: any;
     let pageWidth = 595.28;
     let pageHeight = 841.89;
+    let embeddedLetterheadPage: any = null;
+    let embeddedLetterheadImage: any = null;
 
     if (h.letterhead) {
       const letterheadBlob = await fetchActiveLetterheadBlob();
@@ -321,13 +437,13 @@ const EmployeeManagement: React.FC = () => {
         const lhPage = lhPdf.getPages()[0];
         pageWidth = lhPage.getWidth();
         pageHeight = lhPage.getHeight();
-        const embedded = await pdfDoc.embedPage(lhPage);
+        embeddedLetterheadPage = await pdfDoc.embedPage(lhPage);
         page = pdfDoc.addPage([pageWidth, pageHeight]);
-        page.drawPage(embedded, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+        page.drawPage(embeddedLetterheadPage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
       } else if (isPng || isJpg) {
         page = pdfDoc.addPage([pageWidth, pageHeight]);
-        const embedded = isPng ? await pdfDoc.embedPng(letterheadBytes) : await pdfDoc.embedJpg(letterheadBytes);
-        page.drawImage(embedded, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+        embeddedLetterheadImage = isPng ? await pdfDoc.embedPng(letterheadBytes) : await pdfDoc.embedJpg(letterheadBytes);
+        page.drawImage(embeddedLetterheadImage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
       }
     }
 
@@ -352,8 +468,28 @@ const EmployeeManagement: React.FC = () => {
     const marginX = 48;
     const bodyX = marginX;
     const startY = pageHeight - 128;
+    const headerTopGap = 18;
     const maxWidth = pageWidth - marginX * 2;
-    let y = startY;
+    const bottomSafeY = 150;
+    let y = startY - headerTopGap;
+    const pageStartY = startY - headerTopGap;
+
+    const addNewPage = (): any => {
+      const p = pdfDoc.addPage([pageWidth, pageHeight]);
+      if (embeddedLetterheadPage) {
+        p.drawPage(embeddedLetterheadPage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+      } else if (embeddedLetterheadImage) {
+        p.drawImage(embeddedLetterheadImage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+      }
+      return p;
+    };
+
+    const ensureSpace = (requiredHeight: number) => {
+      if (y - requiredHeight < bottomSafeY) {
+        page = addNewPage();
+        y = pageStartY;
+      }
+    };
 
     type RichRun = { text: string; bold?: boolean; italic?: boolean; underline?: boolean };
     const pickFont = (r: RichRun) => {
@@ -393,7 +529,7 @@ const EmployeeManagement: React.FC = () => {
           flush();
           return;
         }
-        if (tag === "li") current.push({ text: "• ", bold: nextStyle.bold, italic: nextStyle.italic, underline: nextStyle.underline });
+        if (tag === "li") current.push({ text: "- ", bold: nextStyle.bold, italic: nextStyle.italic, underline: nextStyle.underline });
         const children = Array.from(el.childNodes);
         children.forEach((c) => walk(c, nextStyle));
         if (["p", "div", "li", "h1", "h2", "h3"].includes(tag)) flush();
@@ -402,14 +538,45 @@ const EmployeeManagement: React.FC = () => {
       flush();
       return paragraphs.length ? paragraphs : [[{ text: fallbackBody }]];
     };
-    const drawWrappedRuns = (runs: RichRun[], size = 12, lineGap = 17) => {
+
+    const sanitizeText = (text: string) =>
+      text.replace(/[^\x00-\xFF]/g, "");
+
+    const drawWrappedRuns = (runs: RichRun[], size = 11.2, lineGap = 15.5) => {
       let line: RichRun[] = [];
       let lineWidth = 0;
+      let isFirstLine = true;
+      const paragraphText = runs.map((r) => r.text).join("").trim();
+      const isBulletParagraph = paragraphText.startsWith("- ");
+      const listIndent = 12;
+      const bulletGap = 10;
+      const firstLineX = isBulletParagraph ? bodyX + bulletGap : bodyX;
+      const otherLinesX = isBulletParagraph ? bodyX + bulletGap : bodyX;
+      const maxParagraphWidth = isBulletParagraph ? maxWidth - listIndent : maxWidth;
       const drawLine = (items: RichRun[]) => {
-        let x = bodyX;
+        ensureSpace(lineGap + 4);
+        let x = isFirstLine ? firstLineX : otherLinesX;
+        if (isBulletParagraph && items.length > 0 && items[0].text.startsWith("- ")) {
+          const bulletFont = bold; // better visibility
+
+          // draw bullet separately
+          page.drawText("•", {
+            x: bodyX,
+            y,
+            size,
+            font: bulletFont,
+            color: rgb(0.1, 0.1, 0.1),
+          });
+
+          // remove "- " from text
+          items[0] = {
+            ...items[0],
+            text: items[0].text.replace(/^-\s*/, ""),
+          };
+        }
         items.forEach((it) => {
           const f = pickFont(it);
-          page.drawText(it.text, { x, y, size, font: f, color: rgb(0.1, 0.1, 0.1) });
+          page.drawText(sanitizeText(it.text), { x, y, size, font: f, color: rgb(0.1, 0.1, 0.1) });
           const w = f.widthOfTextAtSize(it.text, size);
           if (it.underline) {
             page.drawLine({
@@ -422,13 +589,14 @@ const EmployeeManagement: React.FC = () => {
           x += w;
         });
         y -= lineGap;
+        isFirstLine = false;
       };
       const pushToken = (token: string, proto: RichRun) => {
         if (!line.length && /^\s+$/.test(token)) return;
         const chunk: RichRun = { ...proto, text: token };
         const f = pickFont(chunk);
         const w = f.widthOfTextAtSize(token, size);
-        if (lineWidth + w > maxWidth && line.length) {
+        if (lineWidth + w > maxParagraphWidth && line.length) {
           drawLine(line);
           line = [];
           lineWidth = 0;
@@ -443,31 +611,75 @@ const EmployeeManagement: React.FC = () => {
       if (line.length) drawLine(line);
     };
 
+    const bodyFontSize = 11.8;
+    const bodyLineGap = 17;
+    const paragraphGap = 7;
+
     const title = (kind === "offer" ? "Offer Letter" : "Experience Letter").toUpperCase();
-    const titleSize = 22;
+    const titleSize = 20;
     const titleWidth = bold.widthOfTextAtSize(title, titleSize);
     const titleX = Math.max(marginX, (pageWidth - titleWidth) / 2);
     page.drawText(title, { x: titleX, y, size: titleSize, font: bold, color: rgb(0.1, 0.1, 0.1) });
-    y -= 24;
+    y -= 18;
     if (date) {
       page.drawText(`Date: ${date}`, { x: marginX, y, size: 11, font, color: rgb(0.2, 0.2, 0.2) });
-      y -= 18;
+      y -= 22;
     } else {
-      y -= 8;
+      y -= 14;
     }
-    page.drawText(`Dear ${fullName},`, { x: bodyX, y, size: 12, font, color: rgb(0.1, 0.1, 0.1) });
-    y -= 20;
+    const dearPrefix = "Dear ";
+    const dearPrefixWidth = font.widthOfTextAtSize(dearPrefix, 12);
+    ensureSpace(30);
+    page.drawText(dearPrefix, { x: bodyX, y, size: 12, font, color: rgb(0.1, 0.1, 0.1) });
+    page.drawText(`${fullName},`, { x: bodyX + dearPrefixWidth, y, size: 12, font: bold, color: rgb(0.1, 0.1, 0.1) });
+    y -= 18;
     const paragraphs = parseRichParagraphs(customBody);
     paragraphs.forEach((runs) => {
-      drawWrappedRuns(runs, 12, 17);
-      y -= 4;
+      const markerText = runs.map((r) => r.text).join("").trim();
+      if (markerText === "__PAGE_BREAK__") {
+        page = addNewPage();
+        y = pageStartY;
+        return;
+      }
+      if (["Acceptance of Offer", "Declaration"].includes(markerText)) {
+        const sectionHeight = 120;
+
+        if (y - sectionHeight < bottomSafeY) {
+          page = addNewPage();
+          y = pageStartY;
+        }
+        y -= 6;
+        page.drawLine({
+          start: { x: bodyX, y },
+          end: { x: pageWidth - marginX, y },
+          thickness: 0.7,
+          color: rgb(0.45, 0.45, 0.45),
+        });
+        y -= 12;
+      }
+      drawWrappedRuns(runs, bodyFontSize, bodyLineGap);
+      y -= paragraphGap;
     });
-    y -= 12;
-    page.drawText(letterSettings.closingLine || "Sincerely,", { x: bodyX, y, size: 12, font, color: rgb(0.1, 0.1, 0.1) });
-    y -= 30;
-    page.drawText(letterSettings.signatoryName, { x: bodyX, y, size: 12, font: bold, color: rgb(0.1, 0.1, 0.1) });
-    y -= 16;
-    page.drawText(letterSettings.signatoryRole, { x: bodyX, y, size: 11, font, color: rgb(0.1, 0.1, 0.1) });
+    const shouldAppendSignatureBlock = !(
+      (kind === "offer" && letterDrafts.useStandardOffer) ||
+      (kind === "experience" && letterDrafts.useStandardExperience)
+    );
+    if (shouldAppendSignatureBlock) {
+      // Ensure enough space BEFORE writing signature
+      const signatureBlockHeight = 100;
+
+      if (y - signatureBlockHeight < bottomSafeY) {
+        page = addNewPage();
+        y = pageStartY;
+      }
+
+      y -= 12;
+      page.drawText(letterSettings.closingLine || "Sincerely,", { x: bodyX, y, size: 12, font, color: rgb(0.1, 0.1, 0.1) });
+      y -= 30;
+      page.drawText(letterSettings.signatoryName, { x: bodyX, y, size: 12, font: bold, color: rgb(0.1, 0.1, 0.1) });
+      y -= 16;
+      page.drawText(letterSettings.signatoryRole, { x: bodyX, y, size: 11, font, color: rgb(0.1, 0.1, 0.1) });
+    }
 
     const bytes = await pdfDoc.save();
     return new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
@@ -834,79 +1046,139 @@ const EmployeeManagement: React.FC = () => {
                         </div>
 
                         <div className="rounded-xl border p-3">
-                          <div className="mb-2 font-semibold">Offer / Experience Letters</div>
-                          <div className="grid grid-cols-1 gap-2">
-                            <input value={letterSettings.companyName} onChange={(e) => setLetterSettings((s) => ({ ...s, companyName: e.target.value }))} placeholder="Company Name" className="rounded-lg border px-3 py-2 text-sm" />
-                            <input value={letterSettings.companyAddress} onChange={(e) => setLetterSettings((s) => ({ ...s, companyAddress: e.target.value }))} placeholder="Company Address" className="rounded-lg border px-3 py-2 text-sm" />
-                            <input type="date" value={letterSettings.letterDate} onChange={(e) => setLetterSettings((s) => ({ ...s, letterDate: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                            <input value={letterSettings.signatoryName} onChange={(e) => setLetterSettings((s) => ({ ...s, signatoryName: e.target.value }))} placeholder="Signatory Name" className="rounded-lg border px-3 py-2 text-sm" />
-                            <input value={letterSettings.signatoryRole} onChange={(e) => setLetterSettings((s) => ({ ...s, signatoryRole: e.target.value }))} placeholder="Signatory Role" className="rounded-lg border px-3 py-2 text-sm" />
-                            <input value={letterSettings.closingLine} onChange={(e) => setLetterSettings((s) => ({ ...s, closingLine: e.target.value }))} placeholder="Closing Line (e.g. Sincerely,)" className="rounded-lg border px-3 py-2 text-sm" />
-                            <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-2 text-xs text-indigo-800">
-                              Standard templates are saved and reused for all employees.
-                            </div>
-                            <label className="flex items-center gap-2 text-xs">
-                              <input type="checkbox" checked={letterDrafts.useStandardOffer} onChange={(e) => setLetterDrafts((s) => ({ ...s, useStandardOffer: e.target.checked }))} />
-                              Use Standard Offer Template
-                            </label>
-                            <textarea value={letterDrafts.offerTemplate} onChange={(e) => setLetterDrafts((s) => ({ ...s, offerTemplate: e.target.value }))} className="min-h-[90px] rounded-lg border px-3 py-2 text-sm" placeholder="Standard Offer Template (supports placeholders like {{EMPLOYEE_NAME}}, {{DESIGNATION}}, {{JOINING_DATE}})" />
-                            <label className="flex items-center gap-2 text-xs">
-                              <input type="checkbox" checked={letterDrafts.useStandardExperience} onChange={(e) => setLetterDrafts((s) => ({ ...s, useStandardExperience: e.target.checked }))} />
-                              Use Standard Experience Template
-                            </label>
-                            <textarea value={letterDrafts.experienceTemplate} onChange={(e) => setLetterDrafts((s) => ({ ...s, experienceTemplate: e.target.value }))} className="min-h-[90px] rounded-lg border px-3 py-2 text-sm" placeholder="Standard Experience Template" />
-                            <button type="button" className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-white" onClick={() => setLetterDrafts({ useStandardOffer: true, useStandardExperience: true, offerTemplate: DEFAULT_OFFER_TEMPLATE, experienceTemplate: DEFAULT_EXPERIENCE_TEMPLATE })}>
-                              Reset Standard Templates
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <div className="font-semibold">Offer / Experience Letters</div>
+                            <button
+                              type="button"
+                              className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+                              onClick={() => setLetterModalOpen(true)}
+                            >
+                              Open Letter Studio
                             </button>
-                            <label className="text-xs text-gray-700">
-                              <div className="mb-1 font-semibold">Custom Letter Body</div>
-                              <div className="mb-2 flex flex-wrap gap-2">
-                                <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.bold ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("bold")}>Bold</button>
-                                <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.underline ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("underline")}>Underline</button>
-                                <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.italic ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("italic")}>Italic</button>
-                                <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.bullet ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("insertUnorderedList")}>Bullet</button>
-                                <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => applyEditorCommand("removeFormat")}>Clear</button>
-                              </div>
-                              <div
-                                ref={editorRef}
-                                contentEditable
-                                suppressContentEditableWarning
-                                className="min-h-[130px] rounded-lg border px-3 py-2 text-sm outline-none"
-                                onInput={(e) =>
-                                  setLetterSettings((s) => ({
-                                    ...s,
-                                    body: (e.target as HTMLDivElement).innerHTML,
-                                  }))
-                                }
-                                onKeyUp={syncFormatState}
-                                onMouseUp={syncFormatState}
-                                onFocus={() =>
-                                  setFormatState({
-                                    bold: false,
-                                    underline: false,
-                                    italic: false,
-                                    bullet: false,
-                                  })
-                                }
-                              />
-                              <div
-                                className="mt-2 min-h-[80px] rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-700"
-                                dangerouslySetInnerHTML={{
-                                  __html:
-                                    letterSettings.body?.trim() ||
-                                    "<span style='color:#6b7280'>No custom content added yet.</span>",
-                                }}
-                              />
-                            </label>
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => openPrintableLetter("offer")}><FaPrint className="mr-2 inline" /> Offer Letter</button>
-                            <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => openPrintableLetter("experience")}><FaPrint className="mr-2 inline" /> Experience Letter</button>
-                            <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => downloadLetter("offer")}>Download Offer Letter</button>
-                            <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => downloadLetter("experience")}>Download Experience Letter</button>
+                          <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-800">
+                            Fill all letter fields in a popup modal with separate tabs for Offer and Experience. Unfilled placeholders are auto-set to N/A / Nil.
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => openPrintableLetter("offer")}><FaPrint className="mr-2 inline" /> Quick Print Offer</button>
+                            <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => openPrintableLetter("experience")}><FaPrint className="mr-2 inline" /> Quick Print Experience</button>
                           </div>
                         </div>
                       </div>
+
+                      {letterModalOpen && canUsePortal
+                        ? createPortal(
+                        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 p-2 sm:p-4" onClick={() => setLetterModalOpen(false)}>
+                          <div className="h-[96vh] w-[98vw] max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-between border-b bg-red-50 px-4 py-3">
+                              <div className="text-sm font-bold text-red-700">Letter Studio</div>
+                              <button className="rounded-lg border bg-white px-3 py-1 text-xs font-semibold" onClick={() => setLetterModalOpen(false)}>Close</button>
+                            </div>
+                            <div className="h-[calc(96vh-56px)] overflow-auto p-4">
+                              <div className="mb-3 flex gap-2">
+                                <button type="button" className={`rounded-lg px-3 py-2 text-xs font-semibold ${letterModalTab === "offer" ? "bg-red-600 text-white" : "border"}`} onClick={() => setLetterModalTab("offer")}>Offer Letter</button>
+                                <button type="button" className={`rounded-lg px-3 py-2 text-xs font-semibold ${letterModalTab === "experience" ? "bg-red-600 text-white" : "border"}`} onClick={() => setLetterModalTab("experience")}>Experience Letter</button>
+                              </div>
+                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Company Name</div><input value={letterSettings.companyName} onChange={(e) => setLetterSettings((s) => ({ ...s, companyName: e.target.value }))} placeholder="Company Name" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Company Address</div><input value={letterSettings.companyAddress} onChange={(e) => setLetterSettings((s) => ({ ...s, companyAddress: e.target.value }))} placeholder="Company Address" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                {letterModalTab === "offer" ? (
+                                  <>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Location</div><input value={letterSettings.location} onChange={(e) => setLetterSettings((s) => ({ ...s, location: e.target.value }))} placeholder="City / Branch Location" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Joining Date</div><input type="date" value={letterSettings.offerJoiningDate} onChange={(e) => setLetterSettings((s) => ({ ...s, offerJoiningDate: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Department Name</div><input value={letterSettings.offerDepartmentName} onChange={(e) => setLetterSettings((s) => ({ ...s, offerDepartmentName: e.target.value }))} placeholder="Department Name" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Manager / Supervisor Name</div><input value={letterSettings.managerName} onChange={(e) => setLetterSettings((s) => ({ ...s, managerName: e.target.value }))} placeholder="Reporting Manager Name" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Salary Per Month</div><input value={letterSettings.offerMonthlySalary} onChange={(e) => setLetterSettings((s) => ({ ...s, offerMonthlySalary: e.target.value }))} placeholder="e.g. Rs50,000" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Monthly Leaves</div><input value={letterSettings.monthlyLeaves} onChange={(e) => setLetterSettings((s) => ({ ...s, monthlyLeaves: e.target.value }))} placeholder="e.g. 2 days" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Incentives / Bonus</div><input value={letterSettings.incentives} onChange={(e) => setLetterSettings((s) => ({ ...s, incentives: e.target.value }))} placeholder="Incentives / Bonus" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Benefits</div><input value={letterSettings.benefits} onChange={(e) => setLetterSettings((s) => ({ ...s, benefits: e.target.value }))} placeholder="Health/Travel/PF/ESIC etc." className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Working Hours</div><input value={letterSettings.workingHours} onChange={(e) => setLetterSettings((s) => ({ ...s, workingHours: e.target.value }))} placeholder="9:30 AM to 6:30 PM" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Weekly Offs</div><input value={letterSettings.weeklyOffs} onChange={(e) => setLetterSettings((s) => ({ ...s, weeklyOffs: e.target.value }))} placeholder="Sunday" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Probation Period</div><input value={letterSettings.probationPeriod} onChange={(e) => setLetterSettings((s) => ({ ...s, probationPeriod: e.target.value }))} placeholder="3/6 months" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Notice Period</div><input value={letterSettings.noticePeriod} onChange={(e) => setLetterSettings((s) => ({ ...s, noticePeriod: e.target.value }))} placeholder="30 days" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Acceptance Last Date (Offer)</div><input value={letterSettings.acceptanceLastDate} onChange={(e) => setLetterSettings((s) => ({ ...s, acceptanceLastDate: e.target.value }))} placeholder="DD/MM/YYYY" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                  </>
+                                ) : null}
+                                {letterModalTab === "experience" ? (
+                                  <>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Experience Start Date</div><input type="date" value={letterSettings.experienceStartDate} onChange={(e) => setLetterSettings((s) => ({ ...s, experienceStartDate: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Experience End Date</div><input type="date" value={letterSettings.experienceEndDate} onChange={(e) => setLetterSettings((s) => ({ ...s, experienceEndDate: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Conduct Rating</div><input value={letterSettings.conductRating} onChange={(e) => setLetterSettings((s) => ({ ...s, conductRating: e.target.value }))} placeholder="Good / Excellent" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Company Seal Text</div><input value={letterSettings.companySeal} onChange={(e) => setLetterSettings((s) => ({ ...s, companySeal: e.target.value }))} placeholder="Company Seal" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                  </>
+                                ) : null}
+                                <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Authorized Signatory Name</div><input value={letterSettings.signatoryName} onChange={(e) => setLetterSettings((s) => ({ ...s, signatoryName: e.target.value }))} placeholder="Authorized Signatory Name" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Authorized Signatory Designation</div><input value={letterSettings.signatoryRole} onChange={(e) => setLetterSettings((s) => ({ ...s, signatoryRole: e.target.value }))} placeholder="Designation" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                              </div>
+                              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50 p-2 text-xs text-indigo-800">
+                                Unfilled values auto-fill as N/A / Nil.
+                              </div>
+                              <div className="mt-3">
+                                {letterModalTab === "offer" ? (
+                                  <>
+                                    <label className="flex items-center gap-2 text-xs">
+                                      <input type="checkbox" checked={letterDrafts.useStandardOffer} onChange={(e) => setLetterDrafts((s) => ({ ...s, useStandardOffer: e.target.checked }))} />
+                                      Use Standard Offer Template
+                                    </label>
+                                    <textarea value={letterDrafts.offerTemplate} onChange={(e) => setLetterDrafts((s) => ({ ...s, offerTemplate: e.target.value }))} className="mt-2 min-h-[190px] w-full rounded-lg border px-3 py-2 text-sm" placeholder="Offer template" />
+                                  </>
+                                ) : (
+                                  <>
+                                    <label className="flex items-center gap-2 text-xs">
+                                      <input type="checkbox" checked={letterDrafts.useStandardExperience} onChange={(e) => setLetterDrafts((s) => ({ ...s, useStandardExperience: e.target.checked }))} />
+                                      Use Standard Experience Template
+                                    </label>
+                                    <textarea value={letterDrafts.experienceTemplate} onChange={(e) => setLetterDrafts((s) => ({ ...s, experienceTemplate: e.target.value }))} className="mt-2 min-h-[190px] w-full rounded-lg border px-3 py-2 text-sm" placeholder="Experience template" />
+                                  </>
+                                )}
+                              </div>
+                              <button type="button" className="mt-3 rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-white" onClick={() => setLetterDrafts({ useStandardOffer: true, useStandardExperience: true, offerTemplate: DEFAULT_OFFER_TEMPLATE, experienceTemplate: DEFAULT_PHLEBOTOMIST_EXPERIENCE_TEMPLATE })}>
+                                Reset Standard Templates
+                              </button>
+                              <label className="mt-3 block text-xs text-gray-700">
+                                <div className="mb-1 font-semibold">Custom Letter Body</div>
+                                <div className="mb-2 flex flex-wrap gap-2">
+                                  <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.bold ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("bold")}>Bold</button>
+                                  <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.underline ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("underline")}>Underline</button>
+                                  <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.italic ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("italic")}>Italic</button>
+                                  <button type="button" className={`rounded border px-2 py-1 text-xs ${formatState.bullet ? "bg-red-600 text-white border-red-600" : ""}`} onClick={() => applyEditorCommand("insertUnorderedList")}>Bullet</button>
+                                  <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => applyEditorCommand("removeFormat")}>Clear</button>
+                                </div>
+                                <div
+                                  ref={editorRef}
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  className="min-h-[130px] rounded-lg border px-3 py-2 text-sm outline-none"
+                                  onInput={(e) =>
+                                    setLetterSettings((s) => ({
+                                      ...s,
+                                      body: (e.target as HTMLDivElement).innerHTML,
+                                    }))
+                                  }
+                                  onKeyUp={syncFormatState}
+                                  onMouseUp={syncFormatState}
+                                  onFocus={() =>
+                                    setFormatState({
+                                      bold: false,
+                                      underline: false,
+                                      italic: false,
+                                      bullet: false,
+                                    })
+                                  }
+                                />
+                              </label>
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => openPrintableLetter("offer")}><FaPrint className="mr-2 inline" /> Offer Letter</button>
+                                <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => openPrintableLetter("experience")}><FaPrint className="mr-2 inline" /> Experience Letter</button>
+                                <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => downloadLetter("offer")}>Download Offer Letter</button>
+                                <button className="rounded-lg border px-3 py-2 text-sm font-semibold" onClick={() => downloadLetter("experience")}>Download Experience Letter</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>,
+                        document.body,
+                      )
+                        : null}
                     </div>
                   ) : null}
 
@@ -1026,3 +1298,13 @@ const EmployeeManagement: React.FC = () => {
 };
 
 export default EmployeeManagement;
+
+
+
+
+
+
+
+
+
+
