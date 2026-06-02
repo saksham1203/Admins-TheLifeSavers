@@ -33,6 +33,8 @@ export type Employee = {
   employeeCode: string;
   firstName: string;
   lastName?: string | null;
+  fatherName?: string | null;
+  motherName?: string | null;
   email?: string | null;
   mobile?: string | null;
   designation: string;
@@ -79,7 +81,7 @@ export async function createEmployee(payload: Record<string, unknown>, photoFile
 export async function updateEmployee(id: string, payload: Record<string, unknown>, photoFile?: File | null) {
   const fd = new FormData();
   Object.entries(payload).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && String(v) !== "") fd.append(k, String(v));
+    if (v !== undefined && v !== null) fd.append(k, String(v));
   });
   if (photoFile) fd.append("photo", photoFile);
   return apiFetch<{ success: boolean; employee: Employee }>(`${BASE}/superadmins/employee-management/employees/${id}`, { method: "PATCH", body: fd });

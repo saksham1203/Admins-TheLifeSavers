@@ -54,6 +54,8 @@ const cardClass =
 const emptyEmployeeForm = {
   firstName: "",
   lastName: "",
+  fatherName: "",
+  motherName: "",
   designation: "",
   department: "",
   joiningDate: toYmd(new Date()),
@@ -78,6 +80,8 @@ const emptyEmployeeForm = {
 const fieldLabels: Record<string, string> = {
   firstName: "First Name",
   lastName: "Last Name",
+  fatherName: "Father Name",
+  motherName: "Mother Name",
   designation: "Designation",
   department: "Department",
   joiningDate: "Joining Date",
@@ -99,6 +103,36 @@ const fieldLabels: Record<string, string> = {
   status: "Status",
 };
 const requiredFieldKeys = ["firstName", "lastName", "mobile", "designation", "joiningDate"] as const;
+const employeeDateFieldKeys = new Set(["joiningDate", "dob", "leftDate"]);
+const employeeNumberFieldKeys = new Set(["salaryBasic", "salaryHra", "salaryAllowances", "defaultDeductions"]);
+const employeeInputType = (key: string) => {
+  if (employeeDateFieldKeys.has(key) || key.toLowerCase().endsWith("date")) return "date";
+  if (employeeNumberFieldKeys.has(key)) return "number";
+  return "text";
+};
+const parentDocumentCategories = ["FATHER_ID_PROOF", "FATHER_ADDRESS_PROOF", "MOTHER_ID_PROOF", "MOTHER_ADDRESS_PROOF"];
+const employeeProfileSteps = [
+  {
+    id: "personal",
+    title: "Personal Details",
+    fields: ["firstName", "lastName", "fatherName", "motherName", "dob", "mobile", "email", "emergencyContact", "address"],
+  },
+  {
+    id: "employment",
+    title: "Employment Details",
+    fields: ["designation", "department", "joiningDate", "status"],
+  },
+  {
+    id: "bank",
+    title: "Bank & KYC Details",
+    fields: ["bankName", "bankAccountNumber", "ifscCode", "panNumber", "aadhaarNumber"],
+  },
+  {
+    id: "salary",
+    title: "Salary & Admin Details",
+    fields: ["salaryBasic", "salaryHra", "salaryAllowances", "defaultDeductions", "notes"],
+  },
+] as const;
 const LETTER_DRAFTS_KEY = "employee_letter_standard_drafts_v1";
 const DEFAULT_OFFER_TEMPLATE = `<p>Dear <b>{{CANDIDATE_NAME}}</b>,</p>
 <p>We are pleased to offer you the position of <b>{{DESIGNATION}}</b> with <b>{{COMPANY_NAME}}</b></p>
@@ -191,6 +225,7 @@ const EmployeeManagement: React.FC = () => {
   const [docTitle, setDocTitle] = useState("");
   const [docRemarks, setDocRemarks] = useState("");
   const [form, setForm] = useState<any>(emptyEmployeeForm);
+  const [profileStepIndex, setProfileStepIndex] = useState(0);
   const [attendance, setAttendance] = useState({
     from: toYmd(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
     to: toYmd(new Date()),
@@ -200,6 +235,7 @@ const EmployeeManagement: React.FC = () => {
     checkOut: "18:30",
     notes: "",
   });
+  const [attendanceActionReason, setAttendanceActionReason] = useState("");
   const [salary, setSalary] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
@@ -264,11 +300,16 @@ const EmployeeManagement: React.FC = () => {
   const selected = h.selectedEmployee as (Employee & { documents?: any[] }) | null;
   const selfAttendanceLink = `${window.location.origin}/employee-attendance`;
   const canUsePortal = typeof document !== "undefined";
+  const activeProfileStep = employeeProfileSteps[profileStepIndex] || employeeProfileSteps[0];
+  const isFirstProfileStep = profileStepIndex === 0;
+  const isLastProfileStep = profileStepIndex === employeeProfileSteps.length - 1;
 
   const hydrateFormFromEmployee = (emp: any) => {
     setForm({
       firstName: emp.firstName || "",
       lastName: emp.lastName || "",
+      fatherName: emp.fatherName || "",
+      motherName: emp.motherName || "",
       designation: emp.designation || "",
       department: emp.department || "",
       joiningDate: String(emp.joiningDate || "").slice(0, 10),
@@ -293,6 +334,7 @@ const EmployeeManagement: React.FC = () => {
 
   const openEmployee = async (id: string) => {
     setIsOnboarding(false);
+    setProfileStepIndex(0);
     const emp = await h.loadEmployeeDetails(id);
     hydrateFormFromEmployee(emp);
     await h.loadAttendance(id, attendance.from, attendance.to);
@@ -312,6 +354,7 @@ const EmployeeManagement: React.FC = () => {
     setIsOnboarding(true);
     setForm(emptyEmployeeForm);
     setPhotoFile(null);
+    setProfileStepIndex(0);
     h.setSelectedEmployee(null);
     setActiveTab("profile");
   };
@@ -368,7 +411,7 @@ const EmployeeManagement: React.FC = () => {
       WEEKLY_OFFS: fmtValue(letterSettings.weeklyOffs),
       PROBATION_PERIOD: fmtValue(letterSettings.probationPeriod),
       NOTICE_PERIOD: fmtValue(letterSettings.noticePeriod),
-      LAST_DATE: fmtValue(letterSettings.acceptanceLastDate),
+      LAST_DATE: fmtValue(letterSettings.acceptanceLastDate ? toLongDate(letterSettings.acceptanceLastDate) : ""),
       YOUR_NAME: fmtValue(letterSettings.signatoryName),
       YOUR_DESIGNATION: fmtValue(letterSettings.signatoryRole),
       AUTHORIZED_SIGNATORY_NAME: fmtValue(letterSettings.signatoryName),
@@ -751,6 +794,80 @@ const EmployeeManagement: React.FC = () => {
     return true;
   };
 
+  const filePicker = (
+    id: string,
+    label: string,
+    file: File | null,
+    onChange: (file: File | null) => void,
+    accept?: string,
+  ) => (
+    <label htmlFor={id} className="block cursor-pointer rounded-xl border border-dashed border-red-200 bg-white px-4 py-3 text-sm transition hover:border-red-400 hover:bg-red-50">
+      <input
+        id={id}
+        type="file"
+        accept={accept}
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+        className="sr-only"
+      />
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-red-700">{label}</div>
+          <div className="truncate text-xs text-gray-500">{file?.name || "No file selected"}</div>
+        </div>
+        <span className="shrink-0 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white">
+          <FaUpload className="mr-1 inline" /> Choose
+        </span>
+      </div>
+    </label>
+  );
+
+  const buildAttendanceNotes = (actionLabel: string) => {
+    const baseNotes = String(attendance.notes || "").trim();
+    const reason = String(attendanceActionReason || "").trim();
+    const adminTrail = `${actionLabel}${reason ? `: ${reason}` : ""}`;
+    return [baseNotes, adminTrail].filter(Boolean).join(" | ");
+  };
+
+  const saveAttendanceCorrection = async (actionLabel = "Admin correction") => {
+    if (!selected?.id) return;
+    if (!attendance.date) {
+      window.alert("Attendance Date is required.");
+      return;
+    }
+    if (!isValidTimeHHmm(attendance.checkIn) || !isValidTimeHHmm(attendance.checkOut)) {
+      window.alert("Check-in/Check-out must be in HH:mm format.");
+      return;
+    }
+    if ((attendance.status === "PRESENT" || attendance.status === "HALF_DAY") && (!attendance.checkIn || !attendance.checkOut)) {
+      const ok = window.confirm("This attendance is marked present/half-day without complete in/out time. Continue?");
+      if (!ok) return;
+    }
+    await upsertAttendance(selected.id, {
+      date: attendance.date,
+      status: attendance.status,
+      checkIn: attendance.checkIn,
+      checkOut: attendance.checkOut,
+      notes: buildAttendanceNotes(actionLabel),
+    });
+    setAttendanceActionReason("");
+    await h.loadAttendance(selected.id, attendance.from, attendance.to);
+  };
+
+  const quickAttendanceAction = async (row: any, status: string) => {
+    if (!selected?.id) return;
+    const date = String(row.date).slice(0, 10);
+    const reason = attendanceActionReason.trim() || window.prompt(`Reason for marking ${status}?`) || "";
+    await upsertAttendance(selected.id, {
+      date,
+      status,
+      checkIn: status === "PRESENT" || status === "HALF_DAY" ? row.checkIn || "" : "",
+      checkOut: status === "PRESENT" || status === "HALF_DAY" ? row.checkOut || "" : "",
+      notes: [row.notes || "", `Admin action: marked ${status}${reason ? `: ${reason}` : ""}`].filter(Boolean).join(" | "),
+    });
+    setAttendanceActionReason("");
+    await h.loadAttendance(selected.id, attendance.from, attendance.to);
+  };
+
   const applyEditorCommand = (command: string, value?: string) => {
     if (!editorRef.current) return;
     editorRef.current.focus();
@@ -842,7 +959,7 @@ const EmployeeManagement: React.FC = () => {
             <div className="mb-2 text-sm font-bold text-red-700">Company Letterhead (one-time)</div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-[1.2fr_1fr_auto]">
               <input value={letterheadTitle} onChange={(e) => setLetterheadTitle(e.target.value)} placeholder="Letterhead title" className="rounded-xl border px-3 py-2 text-sm" />
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setLetterheadFile(e.target.files?.[0] || null)} className="rounded-xl border px-3 py-2 text-sm" />
+              {filePicker("letterhead-file", "Choose Letterhead File", letterheadFile, setLetterheadFile, ".pdf,.jpg,.jpeg,.png,.webp")}
               <button
                 className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
                 onClick={async () => {
@@ -970,40 +1087,107 @@ const EmployeeManagement: React.FC = () => {
                   )}
                   {activeTab === "profile" || activeTab === "directory" ? (
                     <div className="space-y-3">
-                      <div className="text-sm font-bold text-red-700">Profile & Employment Details</div>
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                        {Object.entries(form).map(([k, v]) => (
-                          <label key={k} className="text-xs text-gray-700">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <div className="text-sm font-bold text-red-700">{activeProfileStep.title}</div>
+                          <div className="text-xs text-gray-500">Step {profileStepIndex + 1} of {employeeProfileSteps.length}</div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {employeeProfileSteps.map((step, index) => (
+                            <button
+                              key={step.id}
+                              type="button"
+                              onClick={() => setProfileStepIndex(index)}
+                              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                                profileStepIndex === index
+                                  ? "border-red-600 bg-red-600 text-white"
+                                  : "border-red-100 bg-white text-red-700 hover:bg-red-50"
+                              }`}
+                            >
+                              {index + 1}. {step.title}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 rounded-xl border border-red-100 bg-red-50/30 p-3 md:grid-cols-2">
+                        {activeProfileStep.fields.map((k) => (
+                          <label key={k} className={`${k === "address" || k === "notes" ? "md:col-span-2" : ""} text-xs text-gray-700`}>
                             <div className="mb-1 font-semibold">
                               {fieldLabels[k] || k}
                               {requiredFieldKeys.includes(k as (typeof requiredFieldKeys)[number]) ? (
                                 <span className="ml-1 text-red-600">*</span>
                               ) : null}
                             </div>
-                            <input
-                              value={String(v ?? "")}
-                              onChange={(e) =>
-                                setForm((s: any) => ({
-                                  ...s,
-                                  [k]:
-                                    k === "mobile" || k === "emergencyContact"
-                                      ? sanitizeMobile(e.target.value)
-                                      : e.target.value,
-                                }))
-                              }
-                              placeholder={fieldLabels[k] || k}
-                              type={k.toLowerCase().includes("date") ? "date" : k.toLowerCase().includes("salary") ? "number" : "text"}
-                              className="w-full rounded-xl border px-3 py-2 text-sm"
-                            />
+                            {k === "status" ? (
+                              <select
+                                value={String(form[k] ?? "ACTIVE")}
+                                onChange={(e) => setForm((s: any) => ({ ...s, [k]: e.target.value }))}
+                                className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
+                              >
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="INACTIVE">INACTIVE</option>
+                                <option value="LEFT">LEFT</option>
+                              </select>
+                            ) : k === "address" || k === "notes" ? (
+                              <textarea
+                                value={String(form[k] ?? "")}
+                                onChange={(e) => setForm((s: any) => ({ ...s, [k]: e.target.value }))}
+                                placeholder={fieldLabels[k] || k}
+                                rows={3}
+                                className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
+                              />
+                            ) : (
+                              <input
+                                value={String(form[k] ?? "")}
+                                onChange={(e) =>
+                                  setForm((s: any) => ({
+                                    ...s,
+                                    [k]:
+                                      k === "mobile" || k === "emergencyContact"
+                                        ? sanitizeMobile(e.target.value)
+                                        : e.target.value,
+                                  }))
+                                }
+                                placeholder={fieldLabels[k] || k}
+                                type={employeeInputType(k)}
+                                className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
+                              />
+                            )}
                           </label>
                         ))}
-                        <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} className="rounded-xl border px-3 py-2 text-sm" />
+                        {activeProfileStep.id === "personal" ? (
+                          <div className="text-xs text-gray-700 md:col-span-2">
+                            <div className="mb-1 font-semibold">Employee Photo</div>
+                            {filePicker("employee-photo-file", "Choose Employee Photo", photoFile, setPhotoFile, ".jpg,.jpeg,.png,.webp")}
+                          </div>
+                        ) : null}
                       </div>
-                      <div className="flex gap-2">
+
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                          disabled={isFirstProfileStep}
+                          onClick={() => setProfileStepIndex((s) => Math.max(0, s - 1))}
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50"
+                          disabled={isLastProfileStep}
+                          onClick={() => setProfileStepIndex((s) => Math.min(employeeProfileSteps.length - 1, s + 1))}
+                        >
+                          Next
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 border-t pt-3">
                         <button className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700" onClick={async () => { if (!validateEmployeeForm()) return; const payload = { ...form, mobile: sanitizeMobile(String(form.mobile || "")), emergencyContact: sanitizeMobile(String(form.emergencyContact || "")) }; if (!selected?.id) { const created = await createEmployee(payload, photoFile); await h.loadEmployees(1); setIsOnboarding(false); if (created?.employee?.id) { await openEmployee(created.employee.id); } window.alert("Employee created successfully."); } else { await updateEmployee(selected.id, payload, photoFile); await refreshSelected(); await h.loadEmployees(h.page); window.alert("Employee profile updated."); } }}>
                           <FaPlus className="mr-2 inline" /> {selected?.id ? "Save Profile" : "Create Employee"}
                         </button>
-                        <button className="rounded-xl border px-4 py-2 text-sm font-semibold" onClick={() => { setForm(emptyEmployeeForm); h.setSelectedEmployee(null); setPhotoFile(null); }}>Clear Form</button>
+                        <button className="rounded-xl border px-4 py-2 text-sm font-semibold" onClick={() => { setForm(emptyEmployeeForm); h.setSelectedEmployee(null); setPhotoFile(null); setProfileStepIndex(0); }}>Clear Form</button>
                       </div>
                     </div>
                   ) : null}
@@ -1020,13 +1204,27 @@ const EmployeeManagement: React.FC = () => {
                               <input
                                 value={documentName}
                                 onChange={(e) => setDocumentName(e.target.value.toUpperCase())}
-                                placeholder="E.g. ID_PROOF, APPOINTMENT_LETTER, EDUCATION_CERTIFICATE"
+                                placeholder="E.g. ID_PROOF, FATHER_ID_PROOF, MOTHER_ID_PROOF"
                                 className="w-full rounded-lg border px-3 py-2 text-sm"
                               />
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {parentDocumentCategories.map((category) => (
+                                  <button
+                                    key={category}
+                                    type="button"
+                                    className="rounded-lg border border-red-100 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100"
+                                    onClick={() => setDocumentName(category)}
+                                  >
+                                    {category}
+                                  </button>
+                                ))}
+                              </div>
                             </label>
                             <input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="Document title" className="rounded-lg border px-3 py-2 text-sm" />
                             <input value={docRemarks} onChange={(e) => setDocRemarks(e.target.value)} placeholder="Remarks" className="rounded-lg border px-3 py-2 text-sm md:col-span-2" />
-                            <input type="file" onChange={(e) => setDocFile(e.target.files?.[0] || null)} className="rounded-lg border px-3 py-2 text-sm md:col-span-2" />
+                            <div className="md:col-span-2">
+                              {filePicker("employee-document-file", "Choose Document File", docFile, setDocFile)}
+                            </div>
                           </div>
                           <button className="mt-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => { if (!docFile) return; if (!documentName.trim()) { window.alert("Please enter Document Category / Name."); return; } await addEmployeeDocument(selected.id, { docType: documentName.trim(), title: docTitle, remarks: docRemarks }, docFile); setDocFile(null); setDocTitle(""); setDocRemarks(""); setDocumentName(""); await refreshSelected(); }}>
                             <FaUpload className="mr-2 inline" /> Upload Document
@@ -1096,7 +1294,7 @@ const EmployeeManagement: React.FC = () => {
                                     <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Weekly Offs</div><input value={letterSettings.weeklyOffs} onChange={(e) => setLetterSettings((s) => ({ ...s, weeklyOffs: e.target.value }))} placeholder="Sunday" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
                                     <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Probation Period</div><input value={letterSettings.probationPeriod} onChange={(e) => setLetterSettings((s) => ({ ...s, probationPeriod: e.target.value }))} placeholder="3/6 months" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
                                     <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Notice Period</div><input value={letterSettings.noticePeriod} onChange={(e) => setLetterSettings((s) => ({ ...s, noticePeriod: e.target.value }))} placeholder="30 days" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
-                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Acceptance Last Date (Offer)</div><input value={letterSettings.acceptanceLastDate} onChange={(e) => setLetterSettings((s) => ({ ...s, acceptanceLastDate: e.target.value }))} placeholder="DD/MM/YYYY" className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
+                                    <label className="text-xs text-gray-700"><div className="mb-1 font-semibold">Acceptance Last Date (Offer)</div><input type="date" value={letterSettings.acceptanceLastDate} onChange={(e) => setLetterSettings((s) => ({ ...s, acceptanceLastDate: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" /></label>
                                   </>
                                 ) : null}
                                 {letterModalTab === "experience" ? (
@@ -1185,6 +1383,9 @@ const EmployeeManagement: React.FC = () => {
                   {selected && activeTab === "attendance" ? (
                     <div className="space-y-3">
                       <div className="text-sm font-bold text-red-700">Attendance (Admin Backdated Control)</div>
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Use this panel to correct employee-submitted attendance. Corrections overwrite the same date and append an admin action note.
+                      </div>
                       <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2">
                         <div className="text-xs text-indigo-700">
                           Employee Self-Attendance Link:{" "}
@@ -1220,13 +1421,33 @@ const EmployeeManagement: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                        <input type="date" value={attendance.date} onChange={(e) => setAttendance((s) => ({ ...s, date: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                        <select value={attendance.status} onChange={(e) => setAttendance((s) => ({ ...s, status: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm"><option>PRESENT</option><option>ABSENT</option><option>HALF_DAY</option><option>LEAVE</option></select>
-                        <input value={attendance.notes} onChange={(e) => setAttendance((s) => ({ ...s, notes: e.target.value }))} placeholder="Notes" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input value={attendance.checkIn} onChange={(e) => setAttendance((s) => ({ ...s, checkIn: e.target.value }))} placeholder="Check-in HH:mm" className="rounded-lg border px-3 py-2 text-sm" />
-                        <input value={attendance.checkOut} onChange={(e) => setAttendance((s) => ({ ...s, checkOut: e.target.value }))} placeholder="Check-out HH:mm" className="rounded-lg border px-3 py-2 text-sm" />
-                        <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={async () => { if (!attendance.date) { window.alert("Attendance Date is required."); return; } if (!isValidTimeHHmm(attendance.checkIn) || !isValidTimeHHmm(attendance.checkOut)) { window.alert("Check-in/Check-out must be in HH:mm format."); return; } await upsertAttendance(selected.id, { date: attendance.date, status: attendance.status, checkIn: attendance.checkIn, checkOut: attendance.checkOut, notes: attendance.notes }); await h.loadAttendance(selected.id, attendance.from, attendance.to); }}>Save Attendance</button>
+                      <div className="grid grid-cols-1 gap-2 rounded-xl border border-red-100 bg-red-50/30 p-3 md:grid-cols-3">
+                        <label className="text-xs text-gray-700">
+                          <div className="mb-1 font-semibold">Attendance Date</div>
+                          <input type="date" value={attendance.date} onChange={(e) => setAttendance((s) => ({ ...s, date: e.target.value }))} className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
+                        </label>
+                        <label className="text-xs text-gray-700">
+                          <div className="mb-1 font-semibold">Status</div>
+                          <select value={attendance.status} onChange={(e) => setAttendance((s) => ({ ...s, status: e.target.value }))} className="w-full rounded-lg border bg-white px-3 py-2 text-sm"><option>PRESENT</option><option>ABSENT</option><option>HALF_DAY</option><option>LEAVE</option></select>
+                        </label>
+                        <label className="text-xs text-gray-700">
+                          <div className="mb-1 font-semibold">Admin Action Reason</div>
+                          <input value={attendanceActionReason} onChange={(e) => setAttendanceActionReason(e.target.value)} placeholder="Reason for correction/action" className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
+                        </label>
+                        <label className="text-xs text-gray-700">
+                          <div className="mb-1 font-semibold">Check-in</div>
+                          <input value={attendance.checkIn} onChange={(e) => setAttendance((s) => ({ ...s, checkIn: e.target.value }))} placeholder="HH:mm" className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
+                        </label>
+                        <label className="text-xs text-gray-700">
+                          <div className="mb-1 font-semibold">Check-out</div>
+                          <input value={attendance.checkOut} onChange={(e) => setAttendance((s) => ({ ...s, checkOut: e.target.value }))} placeholder="HH:mm" className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
+                        </label>
+                        <label className="text-xs text-gray-700">
+                          <div className="mb-1 font-semibold">Attendance Notes</div>
+                          <input value={attendance.notes} onChange={(e) => setAttendance((s) => ({ ...s, notes: e.target.value }))} placeholder="Notes visible in attendance log" className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
+                        </label>
+                        <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white md:col-span-2" onClick={() => saveAttendanceCorrection("Admin correction")}>Save / Correct Attendance</button>
+                        <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700" onClick={() => { setAttendance((s) => ({ ...s, status: "ABSENT", checkIn: "", checkOut: "" })); setAttendanceActionReason((v) => v || "Employee attendance corrected by admin"); }}>Prepare Absent Action</button>
                       </div>
 
                       <div className="grid grid-cols-1 gap-2 rounded-xl border p-3 md:grid-cols-4">
@@ -1237,7 +1458,33 @@ const EmployeeManagement: React.FC = () => {
                       </div>
 
                       <div className="max-h-[38vh] overflow-auto rounded-xl border">
-                        <table className="min-w-full text-sm"><thead className="bg-red-50"><tr><th className="px-2 py-2 text-left">Date</th><th className="px-2 py-2 text-left">Status</th><th className="px-2 py-2 text-left">In</th><th className="px-2 py-2 text-left">Out</th><th className="px-2 py-2 text-left">Notes</th><th className="px-2 py-2 text-left">Actions</th></tr></thead><tbody>{h.attendance.map((a: any) => <tr key={a.id} className="border-t"><td className="px-2 py-2">{String(a.date).slice(0,10)}</td><td className="px-2 py-2">{a.status}</td><td className="px-2 py-2">{a.checkIn || "-"}</td><td className="px-2 py-2">{a.checkOut || "-"}</td><td className="px-2 py-2">{a.notes || "-"}</td><td className="px-2 py-2"><div className="flex gap-2"><button className="rounded border px-2 py-1 text-xs font-semibold hover:bg-red-50" onClick={() => setAttendance((s) => ({ ...s, date: String(a.date).slice(0, 10), status: a.status || "PRESENT", checkIn: a.checkIn || "", checkOut: a.checkOut || "", notes: a.notes || "" }))}>Edit</button><button className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700" onClick={async () => { const ok = window.confirm("Delete this attendance entry?"); if (!ok) return; await deleteAttendance(selected.id, a.id); await h.loadAttendance(selected.id, attendance.from, attendance.to); }}>Delete</button></div></td></tr>)}</tbody></table>
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-red-50">
+                            <tr><th className="px-2 py-2 text-left">Date</th><th className="px-2 py-2 text-left">Status</th><th className="px-2 py-2 text-left">In</th><th className="px-2 py-2 text-left">Out</th><th className="px-2 py-2 text-left">Notes</th><th className="px-2 py-2 text-left">Actions</th></tr>
+                          </thead>
+                          <tbody>
+                            {h.attendance.length === 0 ? (
+                              <tr><td colSpan={6} className="px-3 py-4 text-gray-500">No attendance records in selected range.</td></tr>
+                            ) : h.attendance.map((a: any) => (
+                              <tr key={a.id} className="border-t">
+                                <td className="px-2 py-2">{String(a.date).slice(0,10)}</td>
+                                <td className="px-2 py-2"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{a.status}</span></td>
+                                <td className="px-2 py-2">{a.checkIn || "-"}</td>
+                                <td className="px-2 py-2">{a.checkOut || "-"}</td>
+                                <td className="max-w-[260px] px-2 py-2 text-xs text-gray-600">{a.notes || "-"}</td>
+                                <td className="px-2 py-2">
+                                  <div className="flex flex-wrap gap-2">
+                                    <button className="rounded border px-2 py-1 text-xs font-semibold hover:bg-red-50" onClick={() => { setAttendance((s) => ({ ...s, date: String(a.date).slice(0, 10), status: a.status || "PRESENT", checkIn: a.checkIn || "", checkOut: a.checkOut || "", notes: a.notes || "" })); setAttendanceActionReason("Correcting employee-submitted attendance"); }}>Edit</button>
+                                    <button className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700" onClick={() => quickAttendanceAction(a, "PRESENT")}>Present</button>
+                                    <button className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700" onClick={() => quickAttendanceAction(a, "LEAVE")}>Leave</button>
+                                    <button className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700" onClick={() => quickAttendanceAction(a, "ABSENT")}>Absent</button>
+                                    <button className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700" onClick={async () => { const reason = attendanceActionReason.trim() || window.prompt("Reason for deleting this attendance entry?") || ""; const ok = window.confirm(`Delete this attendance entry${reason ? ` for: ${reason}` : ""}?`); if (!ok) return; await deleteAttendance(selected.id, a.id); setAttendanceActionReason(""); await h.loadAttendance(selected.id, attendance.from, attendance.to); }}>Delete</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   ) : null}
